@@ -18,8 +18,8 @@ jobs:
           distribution: "temurin"
           cache: gradle
       - name: Build with Gradle
-        run: ./gradlew assembleDebug
+        run: ./gradlew build
       - uses: actions/upload-artifact@v2
         with:
-          name: app-debug.apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: app.apk
+          path: app/build/outputs/apk/debug/app.apk
