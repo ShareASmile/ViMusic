@@ -23,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -37,16 +38,14 @@ import it.vfsfitvnm.vimusic.ui.components.LocalMenuState
 import it.vfsfitvnm.vimusic.ui.components.TopAppBar
 import it.vfsfitvnm.vimusic.ui.components.themed.InFavoritesMediaItemMenu
 import it.vfsfitvnm.vimusic.ui.components.themed.InHistoryMediaItemMenu
-import it.vfsfitvnm.vimusic.ui.components.themed.Menu
-import it.vfsfitvnm.vimusic.ui.components.themed.MenuEntry
 import it.vfsfitvnm.vimusic.ui.styling.Dimensions
 import it.vfsfitvnm.vimusic.ui.styling.LocalAppearance
 import it.vfsfitvnm.vimusic.ui.styling.px
 import it.vfsfitvnm.vimusic.ui.views.SongItem
 import it.vfsfitvnm.vimusic.utils.asMediaItem
-import it.vfsfitvnm.vimusic.utils.enqueue
 import it.vfsfitvnm.vimusic.utils.forcePlayAtIndex
 import it.vfsfitvnm.vimusic.utils.forcePlayFromBeginning
+import it.vfsfitvnm.vimusic.utils.globalCache
 import it.vfsfitvnm.vimusic.utils.secondary
 import it.vfsfitvnm.vimusic.utils.semiBold
 import kotlinx.coroutines.Dispatchers
@@ -63,18 +62,19 @@ fun BuiltInPlaylistScreen(builtInPlaylist: BuiltInPlaylist) {
         host {
             val menuState = LocalMenuState.current
 
+            val context = LocalContext.current
             val binder = LocalPlayerServiceBinder.current
             val (colorPalette, typography) = LocalAppearance.current
 
             val thumbnailSize = Dimensions.thumbnails.song.px
 
-            val songs by remember(binder?.cache, builtInPlaylist) {
+            val songs by remember(context.globalCache, builtInPlaylist) {
                 when (builtInPlaylist) {
                     BuiltInPlaylist.Favorites -> Database.favorites()
-                    BuiltInPlaylist.Offline -> Database.songsWithContentLength().map { songs ->
+                    BuiltInPlaylist.Offline -> Database.getDownloadedSongs().map { songs ->
                         songs.filter { song ->
                             song.contentLength?.let {
-                                binder?.cache?.isCached(song.id, 0, song.contentLength)
+                                context.globalCache.isCached(song.id, 0, song.contentLength)
                             } ?: false
                         }
                     }
@@ -147,30 +147,6 @@ fun BuiltInPlaylistScreen(builtInPlaylist: BuiltInPlaylist) {
                                             .shuffled()
                                             .map(DetailedSong::asMediaItem)
                                     )
-                                }
-                                .padding(horizontal = 8.dp, vertical = 8.dp)
-                                .size(20.dp)
-                        )
-
-                        Image(
-                            painter = painterResource(R.drawable.ellipsis_horizontal),
-                            contentDescription = null,
-                            colorFilter = ColorFilter.tint(colorPalette.text),
-                            modifier = Modifier
-                                .clickable {
-                                    menuState.display {
-                                        Menu {
-                                            MenuEntry(
-                                                icon = R.drawable.enqueue,
-                                                text = "Enqueue",
-                                                isEnabled = songs.isNotEmpty(),
-                                                onClick = {
-                                                    menuState.hide()
-                                                    binder?.player?.enqueue(songs.map(DetailedSong::asMediaItem))
-                                                }
-                                            )
-                                        }
-                                    }
                                 }
                                 .padding(horizontal = 8.dp, vertical = 8.dp)
                                 .size(20.dp)

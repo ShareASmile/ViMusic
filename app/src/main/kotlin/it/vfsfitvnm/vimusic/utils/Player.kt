@@ -1,5 +1,6 @@
 package it.vfsfitvnm.vimusic.utils
 
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
@@ -51,8 +52,19 @@ fun Player.forcePlayAtIndex(mediaItems: List<MediaItem>, mediaItemIndex: Int) {
 fun Player.forcePlayFromBeginning(mediaItems: List<MediaItem>) =
     forcePlayAtIndex(mediaItems, 0)
 
+fun Player.forceSeekToPrevious() {
+    if (hasPreviousMediaItem() || currentPosition > maxSeekToPreviousPosition) {
+        seekToPrevious()
+    } else if (mediaItemCount > 0) {
+        seekTo(mediaItemCount - 1, C.TIME_UNSET)
+    }
+}
+
+fun Player.forceSeekToNext() =
+    if (hasNextMediaItem()) seekToNext() else seekTo(0, C.TIME_UNSET)
+
 fun Player.addNext(mediaItem: MediaItem) {
-    if (playbackState == Player.STATE_IDLE) {
+    if (playbackState == Player.STATE_IDLE || playbackState == Player.STATE_ENDED) {
         forcePlay(mediaItem)
     } else {
         addMediaItem(currentMediaItemIndex + 1, mediaItem)
@@ -60,7 +72,7 @@ fun Player.addNext(mediaItem: MediaItem) {
 }
 
 fun Player.enqueue(mediaItem: MediaItem) {
-    if (playbackState == Player.STATE_IDLE) {
+    if (playbackState == Player.STATE_IDLE || playbackState == Player.STATE_ENDED) {
         forcePlay(mediaItem)
     } else {
         addMediaItem(mediaItemCount, mediaItem)
@@ -68,7 +80,7 @@ fun Player.enqueue(mediaItem: MediaItem) {
 }
 
 fun Player.enqueue(mediaItems: List<MediaItem>) {
-    if (playbackState == Player.STATE_IDLE) {
+    if (playbackState == Player.STATE_IDLE || playbackState == Player.STATE_ENDED) {
         forcePlayFromBeginning(mediaItems)
     } else {
         addMediaItems(mediaItemCount, mediaItems)

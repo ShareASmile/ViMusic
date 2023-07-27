@@ -44,6 +44,8 @@ import it.vfsfitvnm.vimusic.ui.components.SeekBar
 import it.vfsfitvnm.vimusic.ui.styling.LocalAppearance
 import it.vfsfitvnm.vimusic.ui.styling.favoritesIcon
 import it.vfsfitvnm.vimusic.utils.bold
+import it.vfsfitvnm.vimusic.utils.forceSeekToNext
+import it.vfsfitvnm.vimusic.utils.forceSeekToPrevious
 import it.vfsfitvnm.vimusic.utils.rememberRepeatMode
 import it.vfsfitvnm.vimusic.utils.secondary
 import it.vfsfitvnm.vimusic.utils.semiBold
@@ -180,10 +182,11 @@ fun Controls(
                 colorFilter = ColorFilter.tint(colorPalette.favoritesIcon),
                 modifier = Modifier
                     .clickable {
+                        val currentMediaItem = binder.player.currentMediaItem
                         query {
                             if (Database.like(mediaId, if (likedAt == null) System.currentTimeMillis() else null) == 0) {
-                                binder.player.currentMediaItem?.takeIf { it.mediaId == mediaId }?.let { mediaItem ->
-                                    Database.insert(mediaItem, Song::toggleLike)
+                                currentMediaItem?.takeIf { it.mediaId == mediaId }?.let {
+                                    Database.insert(currentMediaItem, Song::toggleLike)
                                 }
                             }
                         }
@@ -197,7 +200,7 @@ fun Controls(
                 contentDescription = null,
                 colorFilter = ColorFilter.tint(colorPalette.text),
                 modifier = Modifier
-                    .clickable(onClick = binder.player::seekToPrevious)
+                    .clickable(onClick = binder.player::forceSeekToPrevious)
                     .weight(1f)
                     .size(24.dp)
             )
@@ -243,35 +246,27 @@ fun Controls(
                 contentDescription = null,
                 colorFilter = ColorFilter.tint(colorPalette.text),
                 modifier = Modifier
-                    .clickable(onClick = binder.player::seekToNext)
+                    .clickable(onClick = binder.player::forceSeekToNext)
                     .weight(1f)
                     .size(24.dp)
             )
 
             Image(
-                painter = painterResource(
-                    if (repeatMode == Player.REPEAT_MODE_ONE) {
-                        R.drawable.repeat_one
-                    } else {
-                        R.drawable.repeat
-                    }
-                ),
+                painter = painterResource(R.drawable.infinite),
                 contentDescription = null,
                 colorFilter = ColorFilter.tint(
-                    if (repeatMode == Player.REPEAT_MODE_OFF) {
-                        colorPalette.textDisabled
-                    } else {
+                    if (repeatMode == Player.REPEAT_MODE_ONE) {
                         colorPalette.text
+                    } else {
+                        colorPalette.textDisabled
                     }
                 ),
                 modifier = Modifier
                     .clickable {
-                        binder.player.repeatMode
-                            .plus(2)
-                            .mod(3)
-                            .let {
-                                binder.player.repeatMode = it
-                            }
+                        binder.player.repeatMode = when (binder.player.repeatMode) {
+                            Player.REPEAT_MODE_ONE -> Player.REPEAT_MODE_ALL
+                            else -> Player.REPEAT_MODE_ONE
+                        }
                     }
                     .weight(1f)
                     .size(24.dp)

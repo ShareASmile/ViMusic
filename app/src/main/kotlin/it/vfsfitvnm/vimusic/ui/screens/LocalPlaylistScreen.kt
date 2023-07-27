@@ -36,7 +36,6 @@ import it.vfsfitvnm.reordering.rememberReorderingState
 import it.vfsfitvnm.reordering.reorder
 import it.vfsfitvnm.route.RouteHandler
 import it.vfsfitvnm.vimusic.Database
-import it.vfsfitvnm.vimusic.LocalPlayerAwarePaddingValues
 import it.vfsfitvnm.vimusic.LocalPlayerServiceBinder
 import it.vfsfitvnm.vimusic.R
 import it.vfsfitvnm.vimusic.models.DetailedSong
@@ -56,13 +55,16 @@ import it.vfsfitvnm.vimusic.ui.styling.LocalAppearance
 import it.vfsfitvnm.vimusic.ui.styling.px
 import it.vfsfitvnm.vimusic.ui.views.SongItem
 import it.vfsfitvnm.vimusic.utils.asMediaItem
-import it.vfsfitvnm.vimusic.utils.enqueue
 import it.vfsfitvnm.vimusic.utils.forcePlayAtIndex
 import it.vfsfitvnm.vimusic.utils.forcePlayFromBeginning
 import it.vfsfitvnm.vimusic.utils.secondary
 import it.vfsfitvnm.vimusic.utils.semiBold
+import it.vfsfitvnm.vimusic.utils.toMediaItem
+import it.vfsfitvnm.youtubemusic.YouTube
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 
 @ExperimentalFoundationApi
 @ExperimentalAnimationApi
@@ -88,31 +90,11 @@ fun LocalPlaylistScreen(playlistId: Long) {
                 lazyListState = lazyListState,
                 key = playlistWithSongs.songs,
                 onDragEnd = { fromIndex, toIndex ->
-                    transaction {
-                        if (fromIndex > toIndex) {
-                            Database.incrementSongPositions(
-                                playlistId = playlistWithSongs.playlist.id,
-                                fromPosition = toIndex,
-                                toPosition = fromIndex - 1
-                            )
-                        } else if (fromIndex < toIndex) {
-                            Database.decrementSongPositions(
-                                playlistId = playlistWithSongs.playlist.id,
-                                fromPosition = fromIndex + 1,
-                                toPosition = toIndex
-                            )
-                        }
-
-                        Database.update(
-                            SongPlaylistMap(
-                                songId = playlistWithSongs.songs[fromIndex].id,
-                                playlistId = playlistWithSongs.playlist.id,
-                                position = toIndex
-                            )
-                        )
+                    query {
+                        Database.move(playlistWithSongs.playlist.id, fromIndex, toIndex)
                     }
                 },
-                extraItemCount = 3
+                extraItemCount = 1
             )
 
             var isRenaming by rememberSaveable {
@@ -148,123 +130,169 @@ fun LocalPlaylistScreen(playlistId: Long) {
                     }
                 )
             }
-
             ReorderingLazyColumn(
                 reorderingState = reorderingState,
-                contentPadding = LocalPlayerAwarePaddingValues.current,
                 modifier = Modifier
                     .background(colorPalette.background0)
                     .fillMaxSize()
             ) {
-                item {
-                    TopAppBar(
-                        modifier = Modifier
-                            .height(52.dp)
-                    ) {
-                        Image(
-                            painter = painterResource(R.drawable.chevron_back),
-                            contentDescription = null,
-                            colorFilter = ColorFilter.tint(colorPalette.text),
+                stickyHeader {
+                    Column {
+                        TopAppBar(
                             modifier = Modifier
-                                .clickable(onClick = pop)
-                                .padding(vertical = 8.dp, horizontal = 16.dp)
-                                .size(24.dp)
-                        )
-                    }
-                }
+                                .background(colorPalette.background0)
+                                .padding(top = 16.dp)
+                                .clickable(
+                                    enabled = false
+                                ) {  }
+                                .height(52.dp)
+                        ) {
+                            Image(
+                                painter = painterResource(R.drawable.chevron_back),
+                                contentDescription = null,
+                                colorFilter = ColorFilter.tint(colorPalette.text),
+                                modifier = Modifier
+                                    .clickable(onClick = pop)
+                                    .padding(vertical = 8.dp, horizontal = 16.dp)
+                                    .size(24.dp)
+                            )
+                        }
 
-                item {
-                    Column(
-                        modifier = Modifier
-                            .padding(top = 16.dp, bottom = 8.dp)
-                            .padding(horizontal = 16.dp)
-                    ) {
-                        BasicText(
-                            text = playlistWithSongs.playlist.name,
-                            style = typography.m.semiBold
-                        )
-
-                        BasicText(
-                            text = "${playlistWithSongs.songs.size} songs",
-                            style = typography.xxs.semiBold.secondary
-                        )
-                    }
-                }
-
-                item {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.End,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .zIndex(1f)
-                            .padding(horizontal = 8.dp)
-                    ) {
-                        Image(
-                            painter = painterResource(R.drawable.shuffle),
-                            contentDescription = null,
-                            colorFilter = ColorFilter.tint(colorPalette.text),
+                        Column(
                             modifier = Modifier
-                                .clickable(enabled = playlistWithSongs.songs.isNotEmpty()) {
-                                    binder?.stopRadio()
-                                    binder?.player?.forcePlayFromBeginning(
-                                        playlistWithSongs.songs
-                                            .shuffled()
-                                            .map(DetailedSong::asMediaItem)
-                                    )
-                                }
+                                .background(colorPalette.background0)
+                                .fillMaxWidth()
+                                .clickable(
+                                    enabled = false
+                                ) {  }
+                                .padding(top = 8.dp, bottom = 8.dp)
+                                .padding(horizontal = 16.dp)
+                        ) {
+                            BasicText(
+                                text = playlistWithSongs.playlist.name,
+                                style = typography.m.semiBold
+                            )
+
+                            BasicText(
+                                text = "${playlistWithSongs.songs.size} songs",
+                                style = typography.xxs.semiBold.secondary
+                            )
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.End,
+                            modifier = Modifier
+                                .background(colorPalette.background0)
+                                .fillMaxWidth()
+                                .clickable(
+                                    enabled = false
+                                ) {  }
+                                .zIndex(1f)
                                 .padding(horizontal = 8.dp, vertical = 8.dp)
-                                .size(20.dp)
-                        )
+                        ) {
+                            Image(
+                                painter = painterResource(R.drawable.shuffle),
+                                contentDescription = null,
+                                colorFilter = ColorFilter.tint(colorPalette.text),
+                                modifier = Modifier
+                                    .clickable(enabled = playlistWithSongs.songs.isNotEmpty()) {
+                                        binder?.stopRadio()
+                                        binder?.player?.forcePlayFromBeginning(
+                                            playlistWithSongs.songs
+                                                .shuffled()
+                                                .map(DetailedSong::asMediaItem)
+                                        )
+                                    }
+                                    .padding(horizontal = 8.dp, vertical = 8.dp)
+                                    .size(20.dp)
+                            )
 
-                        Image(
-                            painter = painterResource(R.drawable.ellipsis_horizontal),
-                            contentDescription = null,
-                            colorFilter = ColorFilter.tint(colorPalette.text),
-                            modifier = Modifier
-                                .clickable {
-                                    menuState.display {
-                                        Menu {
-                                            MenuEntry(
-                                                icon = R.drawable.enqueue,
-                                                text = "Enqueue",
-                                                isEnabled = playlistWithSongs.songs.isNotEmpty(),
-                                                onClick = {
-                                                    menuState.hide()
-                                                    binder?.player?.enqueue(
-                                                        playlistWithSongs.songs.map(
-                                                            DetailedSong::asMediaItem
-                                                        )
+                            Image(
+                                painter = painterResource(R.drawable.ellipsis_horizontal),
+                                contentDescription = null,
+                                colorFilter = ColorFilter.tint(colorPalette.text),
+                                modifier = Modifier
+                                    .clickable {
+                                        menuState.display {
+                                            Menu {
+                                                MenuEntry(
+                                                    icon = R.drawable.pencil,
+                                                    text = "Rename",
+                                                    onClick = {
+                                                        menuState.hide()
+                                                        isRenaming = true
+                                                    }
+                                                )
+
+                                                playlistWithSongs.playlist.browseId?.let { browseId ->
+                                                    MenuEntry(
+                                                        icon = R.drawable.sync,
+                                                        text = "Sync",
+                                                        onClick = {
+                                                            menuState.hide()
+                                                            transaction {
+                                                                runBlocking(Dispatchers.IO) {
+                                                                    withContext(Dispatchers.IO) {
+                                                                        YouTube
+                                                                            .playlist(browseId)
+                                                                            ?.map {
+                                                                                it.next()
+                                                                            }
+                                                                            ?.map { playlist ->
+                                                                                playlist.copy(items = playlist.items?.filter { it.info.endpoint != null })
+                                                                            }
+                                                                    }
+                                                                }
+                                                                    ?.getOrNull()
+                                                                    ?.let { remotePlaylist ->
+                                                                        Database.clearPlaylist(
+                                                                            playlistWithSongs.playlist.id
+                                                                        )
+
+                                                                        remotePlaylist.items?.forEachIndexed { index, song ->
+                                                                            song
+                                                                                .toMediaItem(
+                                                                                    browseId,
+                                                                                    remotePlaylist
+                                                                                )
+                                                                                ?.let { mediaItem ->
+                                                                                    Database.insert(
+                                                                                        mediaItem
+                                                                                    )
+
+                                                                                    Database.insert(
+                                                                                        SongPlaylistMap(
+                                                                                            songId = mediaItem.mediaId,
+                                                                                            playlistId = playlistId,
+                                                                                            position = index
+                                                                                        )
+                                                                                    )
+                                                                                }
+                                                                        }
+                                                                    }
+                                                            }
+                                                        }
                                                     )
                                                 }
-                                            )
 
-                                            MenuEntry(
-                                                icon = R.drawable.pencil,
-                                                text = "Rename",
-                                                onClick = {
-                                                    menuState.hide()
-                                                    isRenaming = true
-                                                }
-                                            )
-
-                                            MenuEntry(
-                                                icon = R.drawable.trash,
-                                                text = "Delete",
-                                                onClick = {
-                                                    menuState.hide()
-                                                    isDeleting = true
-                                                }
-                                            )
+                                                MenuEntry(
+                                                    icon = R.drawable.trash,
+                                                    text = "Delete",
+                                                    onClick = {
+                                                        menuState.hide()
+                                                        isDeleting = true
+                                                    }
+                                                )
+                                            }
                                         }
                                     }
-                                }
-                                .padding(horizontal = 8.dp, vertical = 8.dp)
-                                .size(20.dp)
-                        )
+                                    .padding(horizontal = 8.dp, vertical = 8.dp)
+                                    .size(20.dp)
+                            )
+                        }
                     }
                 }
-
                 itemsIndexed(
                     items = playlistWithSongs.songs,
                     key = { _, song -> song.id },

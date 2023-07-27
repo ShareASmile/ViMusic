@@ -1,6 +1,7 @@
 package it.vfsfitvnm.vimusic.models
 
 import androidx.compose.runtime.Immutable
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
@@ -23,5 +24,6 @@ data class Format(
     val bitrate: Long? = null,
     val contentLength: Long? = null,
     val lastModified: Long? = null,
-    val loudnessDb: Float? = null
+    val loudnessDb: Float? = null,
+    @ColumnInfo("isDownloaded",  defaultValue = "0") val isDownloaded: Boolean
 )

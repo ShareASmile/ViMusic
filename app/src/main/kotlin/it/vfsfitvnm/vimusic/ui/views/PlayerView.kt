@@ -33,6 +33,7 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -49,9 +50,13 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
+import androidx.media3.exoplayer.offline.DownloadRequest
+import androidx.media3.exoplayer.offline.DownloadService
 import coil.compose.AsyncImage
 import it.vfsfitvnm.vimusic.LocalPlayerServiceBinder
 import it.vfsfitvnm.vimusic.R
+import it.vfsfitvnm.vimusic.download.MediaDownloadService
+import it.vfsfitvnm.vimusic.service.BuildMediaUrl
 import it.vfsfitvnm.vimusic.ui.components.BottomSheet
 import it.vfsfitvnm.vimusic.ui.components.BottomSheetState
 import it.vfsfitvnm.vimusic.ui.components.LocalMenuState
@@ -71,6 +76,7 @@ import it.vfsfitvnm.vimusic.utils.secondary
 import it.vfsfitvnm.vimusic.utils.semiBold
 import it.vfsfitvnm.vimusic.utils.thumbnail
 import it.vfsfitvnm.youtubemusic.models.NavigationEndpoint
+import kotlinx.coroutines.launch
 import kotlin.math.absoluteValue
 
 @ExperimentalFoundationApi
@@ -80,6 +86,7 @@ fun PlayerView(
     layoutState: BottomSheetState,
     modifier: Modifier = Modifier,
 ) {
+    val coroutineScope = rememberCoroutineScope()
     val menuState = LocalMenuState.current
 
     val (colorPalette, typography, thumbnailShape) = LocalAppearance.current
@@ -231,7 +238,10 @@ fun PlayerView(
         }
 
         val paddingValues = WindowInsets.navigationBars.asPaddingValues()
-        val playerBottomSheetState = rememberBottomSheetState(64.dp + paddingValues.calculateBottomPadding(), layoutState.expandedBound)
+        val playerBottomSheetState = rememberBottomSheetState(
+            64.dp + paddingValues.calculateBottomPadding(),
+            layoutState.expandedBound
+        )
 
         when (configuration.orientation) {
             Configuration.ORIENTATION_LANDSCAPE -> {
@@ -250,7 +260,6 @@ fun PlayerView(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
                             .weight(0.66f)
-                            .padding(horizontal = 16.dp)
                             .padding(bottom = 16.dp)
                     ) {
                         Thumbnail(
@@ -259,6 +268,8 @@ fun PlayerView(
                             isShowingStatsForNerds = isShowingStatsForNerds,
                             onShowStatsForNerds = { isShowingStatsForNerds = it },
                             nestedScrollConnectionProvider = layoutState::nestedScrollConnection,
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp)
                         )
                     }
 
@@ -292,7 +303,6 @@ fun PlayerView(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
                             .weight(1.25f)
-                            .padding(horizontal = 32.dp, vertical = 8.dp)
                     ) {
                         Thumbnail(
                             isShowingLyrics = isShowingLyrics,
@@ -300,6 +310,8 @@ fun PlayerView(
                             isShowingStatsForNerds = isShowingStatsForNerds,
                             onShowStatsForNerds = { isShowingStatsForNerds = it },
                             nestedScrollConnectionProvider = layoutState::nestedScrollConnection,
+                            modifier = Modifier
+                                .padding(horizontal = 32.dp, vertical = 8.dp)
                         )
                     }
 
@@ -343,48 +355,27 @@ fun PlayerView(
 
                                     BaseMediaItemMenu(
                                         mediaItem = mediaItem,
-                                        onStartRadio = {
-                                            binder.stopRadio()
-                                            binder.player.seamlessPlay(mediaItem)
-                                            binder.setupRadio(
-                                                NavigationEndpoint.Endpoint.Watch(videoId = mediaItem.mediaId)
-                                            )
-                                        },
-                                        onGoToEqualizer = {
-                                            val intent =
-                                                Intent(AudioEffect.ACTION_DISPLAY_AUDIO_EFFECT_CONTROL_PANEL).apply {
-                                                    putExtra(
-                                                        AudioEffect.EXTRA_AUDIO_SESSION,
-                                                        binder.player.audioSessionId
-                                                    )
-                                                    putExtra(
-                                                        AudioEffect.EXTRA_PACKAGE_NAME,
-                                                        context.packageName
-                                                    )
-                                                    putExtra(
-                                                        AudioEffect.EXTRA_CONTENT_TYPE,
-                                                        AudioEffect.CONTENT_TYPE_MUSIC
-                                                    )
-                                                }
+                                        onDownload = {
+                                            coroutineScope.launch {
+                                                val uri = BuildMediaUrl(mediaItem)
 
-                                            if (intent.resolveActivity(context.packageManager) != null) {
-                                                val contract =
-                                                    ActivityResultContracts.StartActivityForResult()
-
-                                                resultRegistryOwner?.activityResultRegistry
-                                                    ?.register("", contract) {}
-                                                    ?.launch(intent)
-                                            } else {
-                                                Toast
-                                                    .makeText(
-                                                        context,
-                                                        "No equalizer app found!",
-                                                        Toast.LENGTH_SHORT
-                                                    )
-                                                    .show()
+                                                uri
+                                                    .getOrNull()
+                                                    ?.let {
+                                                        val id = mediaItem.mediaId
+                                                        val request = DownloadRequest
+                                                            .Builder(id, it)
+                                                            .setCustomCacheKey(id)
+                                                            .build()
+                                                        DownloadService.sendAddDownload(
+                                                            context,
+                                                            MediaDownloadService::class.java,
+                                                            request,
+                                                            true
+                                                        )
+                                                    }
                                             }
                                         },
-                                        onSetSleepTimer = {},
                                         onDismiss = menuState::hide,
                                         onGlobalRouteEmitted = layoutState::collapseSoft,
                                     )

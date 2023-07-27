@@ -8,11 +8,14 @@ import io.ktor.client.plugins.compression.ContentEncoding
 import io.ktor.client.plugins.compression.brotli
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
+import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.Url
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
@@ -54,9 +57,15 @@ object YouTube {
         }
 
         defaultRequest {
-            url("https://music.youtube.com")
+            url(scheme = "https", host = "music.youtube.com") {
+                headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                headers.append("X-Goog-Api-Key", "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8")
+                parameters.append("prettyPrint", "false")
+            }
         }
     }
+
+    internal fun HttpRequestBuilder.mask(value: String = "*") = header("X-Goog-FieldMask", value)
 
     @Serializable
     data class EmptyBody(
@@ -124,9 +133,11 @@ object YouTube {
         data class Client(
             val clientName: String,
             val clientVersion: String,
-            val visitorData: String?,
-//            val gl: String = "US",
+            val platform: String,
             val hl: String = "en",
+            val visitorData: String = "CgtEUlRINDFjdm1YayjX1pSaBg%3D%3D",
+            val androidSdkVersion: Int? = null,
+            val userAgent: String? = null
         )
 
         @Serializable
@@ -138,16 +149,18 @@ object YouTube {
             val DefaultWeb = Context(
                 client = Client(
                     clientName = "WEB_REMIX",
-                    clientVersion = "1.20220328.01.00",
-                    visitorData = "CgtsZG1ySnZiQWtSbyiMjuGSBg%3D%3D"
+                    clientVersion = "1.20220918",
+                    platform = "DESKTOP",
                 )
             )
 
             val DefaultAndroid = Context(
                 client = Client(
-                    clientName = "ANDROID",
-                    clientVersion = "16.50",
-                    visitorData = null,
+                    clientName = "ANDROID_MUSIC",
+                    clientVersion = "5.28.1",
+                    platform = "MOBILE",
+                    androidSdkVersion = 30,
+                    userAgent = "com.google.android.apps.youtube.music/5.28.1 (Linux; U; Android 11) gzip"
                 )
             )
 
@@ -155,7 +168,7 @@ object YouTube {
                 client = Client(
                     clientName = "TVHTML5_SIMPLY_EMBEDDED_PLAYER",
                     clientVersion = "2.0",
-                    visitorData = null,
+                    platform = "TV"
                 )
             )
         }
@@ -454,15 +467,13 @@ object YouTube {
     suspend fun getSearchSuggestions(input: String): Result<List<String>?>? {
         return runCatching {
             val body = client.post("/youtubei/v1/music/get_search_suggestions") {
-                contentType(ContentType.Application.Json)
                 setBody(
                     GetSearchSuggestionsBody(
                         context = Context.DefaultWeb,
                         input = input
                     )
                 )
-                parameter("key", Key)
-                parameter("prettyPrint", false)
+                mask("contents.searchSuggestionsSectionRenderer.contents.searchSuggestionRenderer.navigationEndpoint.searchEndpoint.query")
             }.body<GetSearchSuggestionsResponse>()
 
             body
@@ -470,18 +481,19 @@ object YouTube {
                 ?.flatMap { content ->
                     content
                         .searchSuggestionsSectionRenderer
-                        .contents.mapNotNull {
+                        ?.contents
+                        ?.mapNotNull {
                             it
                                 .searchSuggestionRenderer
-                                .navigationEndpoint
-                                .searchEndpoint
+                                ?.navigationEndpoint
+                                ?.searchEndpoint
                                 ?.query
-                        }
+                        } ?: emptyList()
                 }
         }.recoverIfCancelled()
     }
 
-    suspend fun player(videoId: String, playlistId: String? = null): Result<PlayerResponse>? {
+    suspend fun player(videoId: String, playlistId: String? = null): Result<PlayerResponse> {
         return runCatching {
             val playerResponse = client.post("/youtubei/v1/player") {
                 contentType(ContentType.Application.Json)
@@ -541,7 +553,7 @@ object YouTube {
                     )
                 )
             }
-        }.recoverIfCancelled()
+        }
     }
 
     private suspend fun getQueue(body: GetQueueBody): Result<List<Item.Song>?>? {
@@ -864,12 +876,14 @@ object YouTube {
                         parameter("continuation", continuation)
                     }.body<ContinuationResponse>().let { continuationResponse ->
                         copy(
-                            items = items?.plus(continuationResponse
-                                .continuationContents
-                                .musicShelfContinuation
-                                ?.contents
-                                ?.map(MusicShelfRenderer.Content::musicResponsiveListItemRenderer)
-                                ?.mapNotNull(Item.Companion::from) ?: emptyList()),
+                            items = items?.plus(
+                                continuationResponse
+                                    .continuationContents
+                                    .musicShelfContinuation
+                                    ?.contents
+                                    ?.map(MusicShelfRenderer.Content::musicResponsiveListItemRenderer)
+                                    ?.mapNotNull(Item.Companion::from) ?: emptyList()
+                            ),
                             continuation = continuationResponse
                                 .continuationContents
                                 .musicShelfContinuation
@@ -886,7 +900,7 @@ object YouTube {
 
     suspend fun album(browseId: String): Result<PlaylistOrAlbum>? {
         return playlistOrAlbum(browseId)?.map { album ->
-           album.url?.let { Url(it).parameters["list"] }?.let { playlistId ->
+            album.url?.let { Url(it).parameters["list"] }?.let { playlistId ->
                 playlistOrAlbum("VL$playlistId")?.getOrNull()?.let { playlist ->
                     album.copy(items = playlist.items)
                 }

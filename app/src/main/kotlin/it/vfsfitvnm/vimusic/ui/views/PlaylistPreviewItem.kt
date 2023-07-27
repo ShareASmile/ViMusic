@@ -3,12 +3,9 @@ package it.vfsfitvnm.vimusic.ui.views
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -42,7 +39,8 @@ import kotlinx.coroutines.flow.map
 fun PlaylistPreviewItem(
     playlistPreview: PlaylistPreview,
     modifier: Modifier = Modifier,
-    thumbnailSize: Dp = Dimensions.thumbnails.song
+    thumbnailSize: Dp = Dimensions.thumbnails.song,
+    onClick: () -> Unit
 ) {
     val density = LocalDensity.current
     val (_, _, thumbnailShape) = LocalAppearance.current
@@ -62,7 +60,6 @@ fun PlaylistPreviewItem(
     PlaylistItem(
         name = playlistPreview.playlist.name,
         textColor = Color.White,
-        thumbnailSize = thumbnailSize,
         imageContent = {
             if (thumbnails.toSet().size == 1) {
                 AsyncImage(
@@ -89,15 +86,16 @@ fun PlaylistPreviewItem(
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
+                                .fillMaxSize(0.5f)
                                 .clip(thumbnailShape)
                                 .align(alignment)
-                                .size(thumbnailSize)
                         )
                     }
                 }
             }
         },
-        modifier = modifier
+        modifier = modifier,
+        onClick = onClick
     )
 }
 
@@ -107,11 +105,12 @@ fun BuiltInPlaylistItem(
     colorTint: Color,
     name: String,
     modifier: Modifier = Modifier,
-    thumbnailSize: Dp = Dimensions.thumbnails.song
+    onClick: () -> Unit
 ) {
+    val (_, _, thumbnailShape) = LocalAppearance.current
+
     PlaylistItem(
         name = name,
-        thumbnailSize = thumbnailSize,
         withGradient = false,
         imageContent = {
             Image(
@@ -123,7 +122,9 @@ fun BuiltInPlaylistItem(
                     .size(24.dp)
             )
         },
-        modifier = modifier,
+        modifier = modifier
+            .clip(thumbnailShape),
+        onClick = onClick
     )
 }
 
@@ -132,21 +133,27 @@ fun PlaylistItem(
     name: String,
     modifier: Modifier = Modifier,
     textColor: Color? = null,
-    thumbnailSize: Dp = Dimensions.thumbnails.song,
     withGradient: Boolean = true,
-    imageContent: @Composable BoxScope.() -> Unit
+    imageContent: @Composable BoxScope.() -> Unit,
+    onClick: () -> Unit
 ) {
     val (colorPalette, typography, thumbnailShape) = LocalAppearance.current
+    val interactionSource = remember { MutableInteractionSource() }
 
     Box(
         modifier = modifier
             .clip(thumbnailShape)
             .background(colorPalette.background1)
-            .size(thumbnailSize * 2)
+            .aspectRatio(1f)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
     ) {
         Box(
             modifier = Modifier
-                .size(thumbnailSize * 2),
+                .fillMaxSize(),
             content = imageContent
         )
 

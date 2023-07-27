@@ -9,7 +9,6 @@
 * Local playlists management
 * Queue management
 * Favorites and Offline built-in playlists
-* Sleep timer
 * Skip silence
 * Persistent queue
 * Loudness/audio normalization

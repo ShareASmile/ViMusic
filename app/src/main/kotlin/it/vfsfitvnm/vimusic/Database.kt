@@ -46,6 +46,7 @@ import it.vfsfitvnm.vimusic.models.SongAlbumMap
 import it.vfsfitvnm.vimusic.models.SongArtistMap
 import it.vfsfitvnm.vimusic.models.SongPlaylistMap
 import it.vfsfitvnm.vimusic.models.SortedSongPlaylistMap
+import it.vfsfitvnm.vimusic.utils.globalCache
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -113,6 +114,12 @@ interface Database {
 
     @Query("SELECT * FROM SearchQuery WHERE query LIKE :query ORDER BY id DESC")
     fun queries(query: String): Flow<List<SearchQuery>>
+
+    @Query("SELECT COUNT (*) FROM SearchQuery")
+    fun queriesCount(): Flow<Int>
+
+    @Query("DELETE FROM SearchQuery")
+    fun clearQueries()
 
     @Query("SELECT * FROM Song WHERE id = :id")
     fun song(id: String): Flow<Song?>
@@ -192,22 +199,35 @@ interface Database {
     @Query("SELECT * FROM Format WHERE songId = :songId")
     fun format(songId: String): Flow<Format>
 
+    @Query("SELECT * FROM Song JOIN Format ON id = songId WHERE isDownloaded = true ORDER BY Song.ROWID DESC")
+    fun getDownloadedSongs(): Flow<List<DetailedSongWithContentLength>>
+
     @Transaction
-    @Query("SELECT * FROM Song JOIN Format ON id = songId WHERE contentLength IS NOT NULL AND totalPlayTimeMs > 0 ORDER BY Song.ROWID DESC")
+    @Query("SELECT * FROM Song JOIN Format ON id = songId WHERE contentLength IS NOT NULL ORDER BY Song.ROWID DESC")
     @RewriteQueriesToDropUnusedColumns
     fun songsWithContentLength(): Flow<List<DetailedSongWithContentLength>>
 
-    @Query("UPDATE SongPlaylistMap SET position = position - 1 WHERE playlistId = :playlistId AND position >= :fromPosition")
-    fun decrementSongPositions(playlistId: Long, fromPosition: Int)
+    @Query(
+        """
+        UPDATE SongPlaylistMap SET position = 
+          CASE 
+            WHEN position < :fromPosition THEN position + 1
+            WHEN position > :fromPosition THEN position - 1
+            ELSE :toPosition
+          END 
+        WHERE playlistId = :playlistId AND position BETWEEN MIN(:fromPosition,:toPosition) and MAX(:fromPosition,:toPosition)
+    """
+    )
+    fun move(playlistId: Long, fromPosition: Int, toPosition: Int)
 
-    @Query("UPDATE SongPlaylistMap SET position = position - 1 WHERE playlistId = :playlistId AND position >= :fromPosition AND position <= :toPosition")
-    fun decrementSongPositions(playlistId: Long, fromPosition: Int, toPosition: Int)
-
-    @Query("UPDATE SongPlaylistMap SET position = position + 1 WHERE playlistId = :playlistId AND position >= :fromPosition AND position <= :toPosition")
-    fun incrementSongPositions(playlistId: Long, fromPosition: Int, toPosition: Int)
+    @Query("DELETE FROM SongPlaylistMap WHERE playlistId = :id")
+    fun clearPlaylist(id: Long)
 
     @Query("SELECT loudnessDb FROM Format WHERE songId = :songId")
     fun loudnessDb(songId: String): Flow<Float?>
+
+    @Query("UPDATE Format SET isDownloaded = :downloaded WHERE songId = :songId")
+    fun markDownloaded(songId: String, downloaded: Boolean)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insert(format: Format)
@@ -349,7 +369,7 @@ interface Database {
     views = [
         SortedSongPlaylistMap::class
     ],
-    version = 16,
+    version = 18,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
@@ -364,6 +384,8 @@ interface Database {
         AutoMigration(from = 12, to = 13),
         AutoMigration(from = 13, to = 14),
         AutoMigration(from = 15, to = 16),
+        AutoMigration(from = 16, to = 17),
+        AutoMigration(from = 17, to = 18)
     ],
 )
 @TypeConverters(Converters::class)
@@ -381,7 +403,8 @@ abstract class DatabaseInitializer protected constructor() : RoomDatabase() {
                     .addMigrations(
                         From8To9Migration(),
                         From10To11Migration(),
-                        From14To15Migration()
+                        From14To15Migration(),
+                        From17To18Migration(this@Context)
                     )
                     .build()
             }
@@ -495,6 +518,24 @@ abstract class DatabaseInitializer protected constructor() : RoomDatabase() {
             it.execSQL("INSERT INTO Song_new(id, title, artistsText, durationText, thumbnailUrl, lyrics, likedAt, totalPlayTimeMs) SELECT id, title, artistsText, durationText, thumbnailUrl, lyrics, likedAt, totalPlayTimeMs FROM Song;")
             it.execSQL("DROP TABLE Song;")
             it.execSQL("ALTER TABLE Song_new RENAME TO Song;")
+        }
+    }
+
+    class From17To18Migration(val context: Context) : Migration(17, 18) {
+        override fun migrate(it: SupportSQLiteDatabase) {
+            it.execSQL("ALTER TABLE Format ADD isDownloaded INTEGER NOT NULL DEFAULT 0;")
+            it.query(SimpleSQLiteQuery("SELECT songId, contentLength FROM Format;")).use { cursor ->
+                val formatValues = ContentValues(1)
+                formatValues.put("isDownloaded", true)
+                while (cursor.moveToNext()) {
+                    if (context.globalCache.isCached(cursor.getString(0), 0, cursor.getLong(1))) {
+                        it.update(
+                            "Format", CONFLICT_IGNORE, formatValues, "songId = ?",
+                            arrayOf(cursor.getString(0))
+                        )
+                    }
+                }
+            }
         }
     }
 }

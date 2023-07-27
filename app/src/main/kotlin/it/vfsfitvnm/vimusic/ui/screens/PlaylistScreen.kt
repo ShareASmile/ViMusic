@@ -223,26 +223,6 @@ fun PlaylistScreen(browseId: String) {
                                             menuState.display {
                                                 Menu {
                                                     MenuEntry(
-                                                        icon = R.drawable.enqueue,
-                                                        text = "Enqueue",
-                                                        onClick = {
-                                                            menuState.hide()
-                                                            playlist.items
-                                                                ?.mapNotNull { song ->
-                                                                    song.toMediaItem(
-                                                                        browseId,
-                                                                        playlist
-                                                                    )
-                                                                }
-                                                                ?.let { mediaItems ->
-                                                                    binder?.player?.enqueue(
-                                                                        mediaItems
-                                                                    )
-                                                                }
-                                                        }
-                                                    )
-
-                                                    MenuEntry(
                                                         icon = R.drawable.playlist,
                                                         text = "Import",
                                                         onClick = {
@@ -252,7 +232,8 @@ fun PlaylistScreen(browseId: String) {
                                                                     Database.insert(
                                                                         Playlist(
                                                                             name = playlist.title
-                                                                                ?: "Unknown"
+                                                                                ?: "Unknown",
+                                                                            browseId = browseId
                                                                         )
                                                                     )
 

@@ -168,30 +168,6 @@ fun ArtistScreen(browseId: String) {
                                     .padding(all = 8.dp)
                                     .size(20.dp)
                             )
-
-                            Image(
-                                painter = painterResource(R.drawable.radio),
-                                contentDescription = null,
-                                colorFilter = ColorFilter.tint(colorPalette.text),
-                                modifier = Modifier
-                                    .clickable {
-                                        binder?.playRadio(
-                                            NavigationEndpoint.Endpoint.Watch(
-                                                videoId = artist.radioVideoId
-                                                    ?: artist.shuffleVideoId,
-                                                playlistId = artist.radioPlaylistId
-                                            )
-                                        )
-
-                                        query {
-                                            runBlocking {
-                                                fetchArtist(browseId)
-                                            }
-                                        }
-                                    }
-                                    .padding(all = 8.dp)
-                                    .size(20.dp)
-                            )
                         }
                     } ?: artistResult?.exceptionOrNull()?.let { throwable ->
                         LoadingOrError(

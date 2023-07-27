@@ -26,7 +26,6 @@ import coil.Coil
 import coil.annotation.ExperimentalCoilApi
 import it.vfsfitvnm.route.RouteHandler
 import it.vfsfitvnm.vimusic.LocalPlayerAwarePaddingValues
-import it.vfsfitvnm.vimusic.LocalPlayerServiceBinder
 import it.vfsfitvnm.vimusic.R
 import it.vfsfitvnm.vimusic.enums.CoilDiskCacheMaxSize
 import it.vfsfitvnm.vimusic.enums.ExoPlayerDiskCacheMaxSize
@@ -40,6 +39,7 @@ import it.vfsfitvnm.vimusic.ui.screens.globalRoutes
 import it.vfsfitvnm.vimusic.ui.styling.LocalAppearance
 import it.vfsfitvnm.vimusic.utils.coilDiskCacheMaxSizeKey
 import it.vfsfitvnm.vimusic.utils.exoPlayerDiskCacheMaxSizeKey
+import it.vfsfitvnm.vimusic.utils.globalCache
 import it.vfsfitvnm.vimusic.utils.rememberPreference
 
 @OptIn(ExperimentalCoilApi::class)
@@ -55,7 +55,6 @@ fun CacheSettingsScreen() {
         host {
             val context = LocalContext.current
             val (colorPalette, _) = LocalAppearance.current
-            val binder = LocalPlayerServiceBinder.current
 
             var coilDiskCacheMaxSize by rememberPreference(
                 coilDiskCacheMaxSizeKey,
@@ -99,7 +98,14 @@ fun CacheSettingsScreen() {
 
                     SettingsEntryGroupText(title = "IMAGE CACHE")
 
-                    SettingsGroupDescription(text = "${Formatter.formatShortFileSize(context, diskCacheSize)} used (${diskCacheSize * 100 / coilDiskCacheMaxSize.bytes.coerceAtLeast(1)}%)")
+                    SettingsGroupDescription(
+                        text = "${
+                            Formatter.formatShortFileSize(
+                                context,
+                                diskCacheSize
+                            )
+                        } used (${diskCacheSize * 100 / coilDiskCacheMaxSize.bytes.coerceAtLeast(1)}%)"
+                    )
 
                     EnumValueSelectorSettingsEntry(
                         title = "Max size",
@@ -110,7 +116,7 @@ fun CacheSettingsScreen() {
                     )
                 }
 
-                binder?.cache?.let { cache ->
+                context.globalCache.let { cache ->
                     val diskCacheSize by remember {
                         derivedStateOf {
                             cache.cacheSpace

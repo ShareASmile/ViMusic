@@ -3,12 +3,22 @@ package it.vfsfitvnm.vimusic.utils
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import androidx.core.net.toUri
 import androidx.core.os.bundleOf
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.datasource.cache.Cache
+import it.vfsfitvnm.vimusic.MainApplication
 import it.vfsfitvnm.vimusic.models.DetailedSong
 import it.vfsfitvnm.youtubemusic.YouTube
+
+val Context.globalCache: Cache
+    get() = (applicationContext as MainApplication).cache
+
+fun Context.releaseCache() {
+    (applicationContext as MainApplication).releaseCache()
+}
 
 fun Context.shareAsYouTubeSong(mediaItem: MediaItem) {
     val sendIntent = Intent().apply {
@@ -58,7 +68,8 @@ val YouTube.Item.Video.asMediaItem: MediaItem
                     bundleOf(
                         "videoId" to info.endpoint!!.videoId,
                         "durationText" to durationText,
-                        "artistNames" to if (isOfficialMusicVideo) authors.filter { it.endpoint != null }.map { it.name } else null,
+                        "artistNames" to if (isOfficialMusicVideo) authors.filter { it.endpoint != null }
+                            .map { it.name } else null,
                         "artistIds" to if (isOfficialMusicVideo) authors.mapNotNull { it.endpoint?.browseId } else null,
                     )
                 )
@@ -108,8 +119,11 @@ fun YouTube.PlaylistOrAlbum.Item.toMediaItem(
                         "playlistId" to info.endpoint?.playlistId,
                         "albumId" to (if (isFromAlbum) albumId else album?.endpoint?.browseId),
                         "durationText" to durationText,
-                        "artistNames" to (authors ?: playlistOrAlbum.authors)?.filter { it.endpoint != null }?.map { it.name },
-                        "artistIds" to (authors ?: playlistOrAlbum.authors)?.mapNotNull { it.endpoint?.browseId }
+                        "artistNames" to (authors
+                            ?: playlistOrAlbum.authors)?.filter { it.endpoint != null }
+                            ?.map { it.name },
+                        "artistIds" to (authors
+                            ?: playlistOrAlbum.authors)?.mapNotNull { it.endpoint?.browseId }
                     )
                 )
                 .build()

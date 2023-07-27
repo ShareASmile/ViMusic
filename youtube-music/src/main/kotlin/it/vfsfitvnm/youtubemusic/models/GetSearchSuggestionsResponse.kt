@@ -8,19 +8,19 @@ data class GetSearchSuggestionsResponse(
 ) {
     @Serializable
     data class Content(
-        val searchSuggestionsSectionRenderer: SearchSuggestionsSectionRenderer
+        val searchSuggestionsSectionRenderer: SearchSuggestionsSectionRenderer?
     ) {
         @Serializable
         data class SearchSuggestionsSectionRenderer(
-            val contents: List<Content>
+            val contents: List<Content>?
         ) {
             @Serializable
             data class Content(
-                val searchSuggestionRenderer: SearchSuggestionRenderer
+                val searchSuggestionRenderer: SearchSuggestionRenderer?
             ) {
                 @Serializable
                 data class SearchSuggestionRenderer(
-                    val navigationEndpoint: NavigationEndpoint,
+                    val navigationEndpoint: NavigationEndpoint?,
                 )
             }
         }

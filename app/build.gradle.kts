@@ -13,10 +13,10 @@ android {
 
     defaultConfig {
         applicationId = "it.vfsfitvnm.vimusic"
-        minSdk = 21
+        minSdk = 29
         targetSdk = 32
-        versionCode = 15
-        versionName = "0.4.3"
+        versionCode = 25
+        versionName = "0.4.13"
     }
 
     splits {
@@ -31,7 +31,11 @@ android {
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
-            manifestPlaceholders["appName"] = "Debug"
+            isMinifyEnabled = true
+            isShrinkResources = true
+            manifestPlaceholders["appName"] = "ViMusic"
+            signingConfig = signingConfigs.getByName("debug")
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
 
         release {

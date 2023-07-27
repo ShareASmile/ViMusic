@@ -38,13 +38,14 @@ import it.vfsfitvnm.vimusic.ui.styling.LocalAppearance
 import it.vfsfitvnm.vimusic.ui.styling.onOverlay
 import it.vfsfitvnm.vimusic.ui.styling.overlay
 import it.vfsfitvnm.vimusic.utils.color
+import it.vfsfitvnm.vimusic.utils.globalCache
 import it.vfsfitvnm.vimusic.utils.medium
 import it.vfsfitvnm.vimusic.utils.rememberVolume
 import it.vfsfitvnm.youtubemusic.YouTube
-import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.runBlocking
+import kotlin.math.roundToInt
 
 @Composable
 fun StatsForNerds(
@@ -56,6 +57,7 @@ fun StatsForNerds(
     val (colorPalette, typography) = LocalAppearance.current
     val context = LocalContext.current
     val binder = LocalPlayerServiceBinder.current ?: return
+    val cache = context.globalCache
 
     AnimatedVisibility(
         visible = isDisplayed,
@@ -63,7 +65,7 @@ fun StatsForNerds(
         exit = fadeOut(),
     ) {
         var cachedBytes by remember(mediaId) {
-            mutableStateOf(binder.cache.getCachedBytes(mediaId, 0, -1))
+            mutableStateOf(cache.getCachedBytes(mediaId, 0, -1))
         }
 
         val format by remember(mediaId) {
@@ -89,10 +91,10 @@ fun StatsForNerds(
                 ) = Unit
             }
 
-            binder.cache.addListener(mediaId, listener)
+            cache.addListener(mediaId, listener)
 
             onDispose {
-                binder.cache.removeListener(mediaId, listener)
+                cache.removeListener(mediaId, listener)
             }
         }
 
@@ -195,7 +197,8 @@ fun StatsForNerds(
                             onClick = {
                                 query {
                                     runBlocking(Dispatchers.IO) {
-                                        YouTube.player(mediaId)
+                                        YouTube
+                                            .player(mediaId)
                                             ?.map { response ->
                                                 response.streamingData?.adaptiveFormats
                                                     ?.findLast { format ->
@@ -209,7 +212,8 @@ fun StatsForNerds(
                                                             bitrate = format.bitrate,
                                                             loudnessDb = response.playerConfig?.audioConfig?.loudnessDb?.toFloat(),
                                                             contentLength = format.contentLength,
-                                                            lastModified = format.lastModified
+                                                            lastModified = format.lastModified,
+                                                            isDownloaded = false
                                                         )
                                                     }
                                             }
