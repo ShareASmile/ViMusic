@@ -1,5 +1,10 @@
 package it.vfsfitvnm.vimusic.ui.screens.settings
 
+import android.app.Activity
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
@@ -21,7 +26,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.app.ActivityCompat.startActivityForResult
 import it.vfsfitvnm.compose.routing.RouteHandler
 import it.vfsfitvnm.vimusic.R
 import it.vfsfitvnm.vimusic.ui.components.themed.Scaffold
@@ -30,8 +37,10 @@ import it.vfsfitvnm.vimusic.ui.components.themed.ValueSelectorDialog
 import it.vfsfitvnm.vimusic.ui.screens.globalRoutes
 import it.vfsfitvnm.vimusic.ui.styling.LocalAppearance
 import it.vfsfitvnm.vimusic.utils.color
+import it.vfsfitvnm.vimusic.utils.filePickerCode
 import it.vfsfitvnm.vimusic.utils.secondary
 import it.vfsfitvnm.vimusic.utils.semiBold
+import java.net.URI
 
 @ExperimentalFoundationApi
 @ExperimentalAnimationApi
@@ -150,6 +159,33 @@ fun SwitchSettingEntry(
         onClick = { onCheckedChange(!isChecked) },
         trailingContent = { Switch(isChecked = isChecked) },
         modifier = modifier
+    )
+}
+
+@Composable
+fun FilePickerEntry(
+    title: String,
+    uri: String,
+    onUriChanged: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    isEnabled: Boolean = true
+) {
+    val launcher =
+        rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            val data = it.data?.data
+            if (data != null)
+                onUriChanged(data.toString())
+        }
+    SettingsEntry(
+        title = title,
+        text = if (uri.isEmpty()) "Default" else Uri.parse(uri).path ?: "Default",
+        onClick = {
+            val intent =
+                Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply { addCategory(Intent.CATEGORY_DEFAULT) }
+            launcher.launch(intent)
+        },
+        modifier = modifier,
+        isEnabled = isEnabled
     )
 }
 

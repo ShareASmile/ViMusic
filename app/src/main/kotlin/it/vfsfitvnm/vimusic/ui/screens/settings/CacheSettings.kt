@@ -1,5 +1,6 @@
 package it.vfsfitvnm.vimusic.ui.screens.settings
 
+import android.net.Uri
 import android.text.format.Formatter
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.background
@@ -26,6 +27,7 @@ import it.vfsfitvnm.vimusic.enums.CoilDiskCacheMaxSize
 import it.vfsfitvnm.vimusic.enums.ExoPlayerDiskCacheMaxSize
 import it.vfsfitvnm.vimusic.ui.components.themed.Header
 import it.vfsfitvnm.vimusic.ui.styling.LocalAppearance
+import it.vfsfitvnm.vimusic.utils.cacheDirectoryKey
 import it.vfsfitvnm.vimusic.utils.coilDiskCacheMaxSizeKey
 import it.vfsfitvnm.vimusic.utils.exoPlayerDiskCacheMaxSizeKey
 import it.vfsfitvnm.vimusic.utils.rememberPreference
@@ -45,6 +47,10 @@ fun CacheSettings() {
     var exoPlayerDiskCacheMaxSize by rememberPreference(
         exoPlayerDiskCacheMaxSizeKey,
         ExoPlayerDiskCacheMaxSize.`2GB`
+    )
+    var cacheDirectory by rememberPreference(
+        cacheDirectoryKey,
+        ""
     )
 
     Column(
@@ -115,5 +121,17 @@ fun CacheSettings() {
                 onValueSelected = { exoPlayerDiskCacheMaxSize = it }
             )
         }
+
+        SettingsGroupSpacer()
+
+        SettingsEntryGroupText(title = "CACHE LOCATION")
+
+        FilePickerEntry(
+            title = "Directory",
+            onUriChanged = {
+                cacheDirectory = it
+            },
+            uri = cacheDirectory
+        )
     }
 }
