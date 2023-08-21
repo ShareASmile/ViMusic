@@ -198,7 +198,7 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
         val cacheEvictor = when (val size =
             preferences.getEnum(exoPlayerDiskCacheMaxSizeKey, ExoPlayerDiskCacheMaxSize.`2GB`)) {
             ExoPlayerDiskCacheMaxSize.Unlimited -> NoOpCacheEvictor()
-            else -> LeastRecentlyUsedCacheEvictor(size.bytes)
+            else -> DownloadEvictor(size.bytes)
         }
 
         // TODO: Remove in a future release

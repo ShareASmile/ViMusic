@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 23,
-    "identityHash": "205c24811149a247279bcbfdc2d6c396",
+    "identityHash": "0b2de68ce1470fd7b8d6362672d43301",
     "entities": [
       {
         "tableName": "Song",
@@ -137,7 +137,7 @@
       },
       {
         "tableName": "Playlist",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `browseId` TEXT)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `browseId` TEXT, `download` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -156,6 +156,12 @@
             "columnName": "browseId",
             "affinity": "TEXT",
             "notNull": false
+          },
+          {
+            "fieldPath": "download",
+            "columnName": "download",
+            "affinity": "INTEGER",
+            "notNull": true
           }
         ],
         "primaryKey": {
@@ -666,7 +672,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '205c24811149a247279bcbfdc2d6c396')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '0b2de68ce1470fd7b8d6362672d43301')"
     ]
   }
 }

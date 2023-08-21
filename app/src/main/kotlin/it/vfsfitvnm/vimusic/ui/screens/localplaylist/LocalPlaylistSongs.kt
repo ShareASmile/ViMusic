@@ -1,8 +1,10 @@
 package it.vfsfitvnm.vimusic.ui.screens.localplaylist
 
+import android.util.Log
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
@@ -14,11 +16,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -61,8 +65,10 @@ import it.vfsfitvnm.vimusic.utils.completed
 import it.vfsfitvnm.vimusic.utils.enqueue
 import it.vfsfitvnm.vimusic.utils.forcePlayAtIndex
 import it.vfsfitvnm.vimusic.utils.forcePlayFromBeginning
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 
@@ -80,7 +86,9 @@ fun LocalPlaylistSongs(
     var playlistWithSongs by persist<PlaylistWithSongs?>("localPlaylist/$playlistId/playlistWithSongs")
 
     LaunchedEffect(Unit) {
-        Database.playlistWithSongs(playlistId).filterNotNull().collect { playlistWithSongs = it }
+        Database.playlistWithSongs(playlistId).filterNotNull().collect {
+            playlistWithSongs = it
+        }
     }
 
     val lazyListState = rememberLazyListState()
@@ -164,6 +172,22 @@ fun LocalPlaylistSongs(
                                 }
                         }
                     )
+                    HeaderIconButton(
+                        onClick = {
+                            playlistWithSongs?.playlist?.download?.let {
+                                CoroutineScope(Dispatchers.IO).launch {
+                                    Database.setPlaylistDownloaded(playlistId, !it)
+                                }
+                            }
+                        },
+                        icon = R.drawable.baseline_download_24,
+                        color = if (playlistWithSongs?.playlist?.download == true) colorPalette.accent else colorPalette.text,
+                        modifier = if (playlistWithSongs?.playlist?.download == true) Modifier.border(
+                            1.dp,
+                            colorPalette.accent,
+                            shape = CircleShape
+                        ) else Modifier
+                    )
 
                     Spacer(
                         modifier = Modifier
@@ -185,7 +209,11 @@ fun LocalPlaylistSongs(
                                                 transaction {
                                                     runBlocking(Dispatchers.IO) {
                                                         withContext(Dispatchers.IO) {
-                                                            Innertube.playlistPage(BrowseBody(browseId = browseId))
+                                                            Innertube.playlistPage(
+                                                                BrowseBody(
+                                                                    browseId = browseId
+                                                                )
+                                                            )
                                                                 ?.completed()
                                                         }
                                                     }?.getOrNull()?.let { remotePlaylist ->
