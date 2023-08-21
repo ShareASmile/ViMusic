@@ -27,6 +27,7 @@ import android.media.session.PlaybackState
 import android.net.Uri
 import android.os.Handler
 import android.text.format.DateUtils
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -124,6 +125,7 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
     private lateinit var mediaSession: MediaSession
     private lateinit var cache: SimpleCache
     private lateinit var player: ExoPlayer
+    private lateinit var dataSource: CacheDataSource
 
     private val stateBuilder = PlaybackState.Builder()
         .setActions(
@@ -752,7 +754,10 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
         val chunkLength = 512 * 1024L
         val ringBuffer = RingBuffer<Pair<String, Uri>?>(2) { null }
 
-        return ResolvingDataSource.Factory(createCacheDataSource()) { dataSpec ->
+        val factory = createCacheDataSource()
+        dataSource = factory.createDataSource() as CacheDataSource
+        return ResolvingDataSource.Factory(factory) { dataSpec ->
+            Log.d("cache","dataspec: $dataSpec")
             val videoId = dataSpec.key ?: error("A key must be set")
 
             if (cache.isCached(videoId, dataSpec.position, chunkLength)) {
@@ -877,6 +882,9 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
 
         val mediaSession
             get() = this@PlayerService.mediaSession
+
+        val dataSource
+            get() = this@PlayerService.dataSource
 
         val sleepTimerMillisLeft: StateFlow<Long?>?
             get() = timerJob?.millisLeft

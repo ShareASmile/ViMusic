@@ -1,6 +1,7 @@
 package it.vfsfitvnm.vimusic.ui.screens.builtinplaylist
 
 import android.content.SharedPreferences
+import android.util.Log
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -73,6 +74,7 @@ fun BuiltInPlaylistSongs(builtInPlaylist: BuiltInPlaylist) {
                 .songsWithContentLength()
                 .flowOn(Dispatchers.IO)
                 .map { songs ->
+                    Log.d("cache","song: $songs")
                     songs.filter { song ->
                         song.contentLength?.let {
                             binder?.cache?.isCached(song.song.id, 0, song.contentLength)

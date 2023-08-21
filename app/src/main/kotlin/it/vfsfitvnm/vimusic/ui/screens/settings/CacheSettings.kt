@@ -93,6 +93,11 @@ fun CacheSettings() {
                     cache.cacheSpace
                 }
             }
+//            val diskDownloadSize by remember {
+//                derivedStateOf {
+//                    cache.cacheSpace
+//                }
+//            }
 
             SettingsGroupSpacer()
 
