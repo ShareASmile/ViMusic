@@ -26,8 +26,12 @@ android {
 
     buildTypes {
         debug {
-            applicationIdSuffix = ".debug"
-            manifestPlaceholders["appName"] = "Debug"
+            applicationIdSuffix = ".multi"
+            isMinifyEnabled = true
+            isShrinkResources = true
+            manifestPlaceholders["appName"] = "ViMusic Multi"
+            signingConfig = signingConfigs.getByName("debug")
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
 
         release {
