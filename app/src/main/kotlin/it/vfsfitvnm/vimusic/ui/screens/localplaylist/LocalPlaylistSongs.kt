@@ -1,8 +1,6 @@
 package it.vfsfitvnm.vimusic.ui.screens.localplaylist
 
 import android.net.Uri
-import android.text.format.DateUtils
-import android.text.format.DateUtils.formatElapsedTime
 import android.util.Log
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -25,10 +23,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.media3.datasource.DataSpec
@@ -49,7 +47,6 @@ import it.vfsfitvnm.vimusic.Database
 import it.vfsfitvnm.vimusic.LocalPlayerAwareWindowInsets
 import it.vfsfitvnm.vimusic.LocalPlayerServiceBinder
 import it.vfsfitvnm.vimusic.R
-import it.vfsfitvnm.vimusic.models.Format
 import it.vfsfitvnm.vimusic.models.PlaylistWithSongs
 import it.vfsfitvnm.vimusic.models.Song
 import it.vfsfitvnm.vimusic.models.SongPlaylistMap
@@ -72,10 +69,11 @@ import it.vfsfitvnm.vimusic.ui.styling.LocalAppearance
 import it.vfsfitvnm.vimusic.ui.styling.px
 import it.vfsfitvnm.vimusic.utils.asMediaItem
 import it.vfsfitvnm.vimusic.utils.completed
+import it.vfsfitvnm.vimusic.utils.downloadParallel
 import it.vfsfitvnm.vimusic.utils.enqueue
-import it.vfsfitvnm.vimusic.utils.findNextMediaItemById
 import it.vfsfitvnm.vimusic.utils.forcePlayAtIndex
 import it.vfsfitvnm.vimusic.utils.forcePlayFromBeginning
+import it.vfsfitvnm.vimusic.utils.processVideoRequest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.filterNotNull
@@ -183,73 +181,30 @@ fun LocalPlaylistSongs(
                                 }
                         }
                     )
-                    val player = LocalPlayerServiceBinder.current
+                    val playerService = LocalPlayerServiceBinder.current
+                    val context = LocalContext.current
                     HeaderIconButton(
                         onClick = {
                             playlistWithSongs?.playlist?.download?.let {
                                 val download = !it
                                 CoroutineScope(Dispatchers.IO).launch {
                                     Database.setPlaylistDownloaded(playlistId, download)
-                                    if (download) {
-                                        playlistWithSongs?.songs?.forEach { song ->
-                                            val url =
-                                                Innertube.player(PlayerBody(videoId = song.id))
-                                                    ?.mapCatching { body ->
-                                                        when (val status =
-                                                            body.playabilityStatus?.status) {
-                                                            "OK" -> body.streamingData?.highestQualityFormat?.let { format ->
-                                                                val mediaItem = runBlocking(Dispatchers.Main) {
-                                                                    player!!.player.findNextMediaItemById(song.id)
-                                                                }
-
-                                                                if (mediaItem?.mediaMetadata?.extras?.getString("durationText") == null) {
-                                                                    format.approxDurationMs?.div(1000)
-                                                                        ?.let(DateUtils::formatElapsedTime)?.removePrefix("0")
-                                                                        ?.let { durationText ->
-                                                                            mediaItem?.mediaMetadata?.extras?.putString(
-                                                                                "durationText",
-                                                                                durationText
-                                                                            )
-                                                                            Database.updateDurationText(song.id, durationText)
-                                                                        }
-                                                                }
-                                                                query {
-                                                                    mediaItem?.let(Database::insert)
-                                                                    Database.insert(
-                                                                        Format(
-                                                                            songId = song.id,
-                                                                            itag = format.itag,
-                                                                            mimeType = format.mimeType,
-                                                                            bitrate = format.bitrate,
-                                                                            loudnessDb = body.playerConfig?.audioConfig?.normalizedLoudnessDb,
-                                                                            contentLength = format.contentLength,
-                                                                            lastModified = format.lastModified
-                                                                        )
-                                                                    )
-                                                                }
-
-                                                                format.url
-                                                            } ?: ""
-
-                                                            else -> ""
-                                                        }
-                                                    }
-                                            val uri = url?.getOrNull()?.toUri() ?: Uri.EMPTY
-                                            Log.d("cache", "url: ${uri}")
-                                            val data = DataSpec.Builder()
-                                                .setKey(song.id)
-                                                .setHttpMethod(HTTP_METHOD_GET)
-                                                .setPosition(0)
-                                                .setUri(uri)
-                                                .build()
-                                            Log.d("cache", "manual dataspec: $data")
-                                            CacheWriter(
-                                                player!!.dataSource,
-                                                data,
-                                                null
-                                            ) { length, old, new ->
-                                                Log.d("cache", "progress $length $old $new")
-                                            }.cache()
+                                    if (download && playerService != null) {
+                                        playlistWithSongs?.songs?.filter { song ->
+                                            !playerService.cache.isCached(
+                                                song.id,
+                                                0,
+                                                Database.songContentLength(song.id) ?: 0
+                                            )
+                                        }?.let { songList ->
+                                            Log.d("cache", "downloading ${songList.size} items")
+                                            Log.d("cache", "$songList")
+                                            downloadParallel(
+                                                context,
+                                                songList,
+                                                playerService.player,
+                                                playerService.dataSource
+                                            )
                                         }
                                     }
                                 }

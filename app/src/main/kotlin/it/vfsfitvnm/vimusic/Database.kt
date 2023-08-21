@@ -144,6 +144,9 @@ interface Database {
     @Query("UPDATE Playlist SET download = :downloaded WHERE id = :id ")
     fun setPlaylistDownloaded(id: Long, downloaded: Boolean)
 
+    @Query("SELECT contentLength FROM Format WHERE songId = :id")
+    fun songContentLength(id: String): Long?
+
     @Query("SELECT likedAt FROM Song WHERE id = :songId")
     fun likedAt(songId: String): Flow<Long?>
 
@@ -237,7 +240,7 @@ interface Database {
     fun incrementTotalPlayTimeMs(id: String, addition: Long)
 
     @Transaction
-    @Query("SELECT * FROM Playlist WHERE id = :id")
+    @Query("SELECT * FROM Playlist WHERE id = :id ")
     fun playlistWithSongs(id: Long): Flow<PlaylistWithSongs?>
 
     @Transaction

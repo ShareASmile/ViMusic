@@ -488,4 +488,5 @@ class MainActivity : ComponentActivity(), PersistMapOwner {
 
 val LocalPlayerServiceBinder = staticCompositionLocalOf<PlayerService.Binder?> { null }
 
+
 val LocalPlayerAwareWindowInsets = staticCompositionLocalOf<WindowInsets> { TODO() }

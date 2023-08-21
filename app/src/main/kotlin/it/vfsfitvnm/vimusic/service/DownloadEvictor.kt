@@ -30,8 +30,8 @@ class DownloadEvictor(private val maxBytes: Long) : CacheEvictor {
         } else {
             leastRecentlyUsed.add(span)
             currentSize += span.length
+            evictCache(cache, 0)
         }
-        evictCache(cache, 0)
     }
 
     override fun onSpanRemoved(cache: Cache, span: CacheSpan) {
