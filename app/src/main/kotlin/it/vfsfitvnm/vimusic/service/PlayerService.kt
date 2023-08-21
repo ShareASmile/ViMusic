@@ -27,7 +27,6 @@ import android.media.session.PlaybackState
 import android.net.Uri
 import android.os.Handler
 import android.text.format.DateUtils
-import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -85,7 +84,6 @@ import it.vfsfitvnm.vimusic.utils.TimerJob
 import it.vfsfitvnm.vimusic.utils.YouTubeRadio
 import it.vfsfitvnm.vimusic.utils.activityPendingIntent
 import it.vfsfitvnm.vimusic.utils.broadCastPendingIntent
-import it.vfsfitvnm.vimusic.utils.cacheDirectoryKey
 import it.vfsfitvnm.vimusic.utils.exoPlayerDiskCacheMaxSizeKey
 import it.vfsfitvnm.vimusic.utils.findNextMediaItemById
 import it.vfsfitvnm.vimusic.utils.forcePlayFromBeginning
@@ -119,7 +117,6 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
 import kotlinx.coroutines.runBlocking
-import java.io.File
 
 @Suppress("DEPRECATION")
 class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListener.Callback,
@@ -205,8 +202,7 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
         }
 
         // TODO: Remove in a future release
-        val cacheDirectory = preferences.getString(cacheDirectoryKey, "")!!
-        val directory = if (cacheDirectory.isEmpty()) cacheDir.resolve("exoplayer").also { directory ->
+        val directory = cacheDir.resolve("exoplayer").also { directory ->
             if (directory.exists()) return@also
 
             directory.mkdir()
@@ -220,8 +216,7 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
             }
 
             filesDir.resolve("coil").deleteRecursively()
-        } else File(Uri.parse(cacheDirectory).path)
-        Log.d("cache","dir: ${directory.path}")
+        }
         cache = SimpleCache(directory, cacheEvictor, StandaloneDatabaseProvider(this))
 
         player = ExoPlayer.Builder(this, createRendersFactory(), createMediaSourceFactory())
@@ -485,8 +480,7 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
                     try {
                         loudnessEnhancer?.setTargetGain(-((loudnessDb ?: 0f) * 100).toInt() + 500)
                         loudnessEnhancer?.enabled = true
-                    } catch (_: Exception) {
-                    }
+                    } catch (_: Exception) { }
                 }
             }
         }
@@ -965,8 +959,7 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
         override fun onSeekTo(pos: Long) = player.seekTo(pos)
         override fun onStop() = player.pause()
         override fun onRewind() = player.seekToDefaultPosition()
-        override fun onSkipToQueueItem(id: Long) =
-            runCatching { player.seekToDefaultPosition(id.toInt()) }.let { }
+        override fun onSkipToQueueItem(id: Long) = runCatching { player.seekToDefaultPosition(id.toInt()) }.let { }
     }
 
     private class NotificationActionReceiver(private val player: Player) : BroadcastReceiver() {

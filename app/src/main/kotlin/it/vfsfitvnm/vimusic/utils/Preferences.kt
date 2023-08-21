@@ -2,7 +2,6 @@ package it.vfsfitvnm.vimusic.utils
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.SnapshotMutationPolicy
@@ -16,8 +15,6 @@ const val colorPaletteModeKey = "colorPaletteMode"
 const val thumbnailRoundnessKey = "thumbnailRoundness"
 const val coilDiskCacheMaxSizeKey = "coilDiskCacheMaxSize"
 const val exoPlayerDiskCacheMaxSizeKey = "exoPlayerDiskCacheMaxSize"
-const val cacheDirectoryKey = "cacheDirectory"
-const val filePickerCode = 13578
 const val isInvincibilityEnabledKey = "isInvincibilityEnabled"
 const val useSystemFontKey = "useSystemFont"
 const val applyFontPaddingKey = "applyFontPadding"
