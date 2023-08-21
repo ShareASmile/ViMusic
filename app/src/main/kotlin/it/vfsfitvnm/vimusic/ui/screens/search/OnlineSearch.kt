@@ -37,6 +37,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
@@ -102,6 +103,7 @@ fun OnlineSearch(
     val playlistId = remember(textFieldValue.text) {
         val isPlaylistUrl = listOf(
             "https://www.youtube.com/playlist?",
+            "https://youtube.com/playlist?",
             "https://music.youtube.com/playlist?",
             "https://m.youtube.com/playlist?"
         ).any(textFieldValue.text::startsWith)
@@ -171,7 +173,7 @@ fun OnlineSearch(
 
                         if (textFieldValue.text.isNotEmpty()) {
                             SecondaryTextButton(
-                                text = "Clear",
+                                text = stringResource(R.string.clear),
                                 onClick = { onTextFieldValueChanged(TextFieldValue()) }
                             )
                         }
@@ -303,7 +305,7 @@ fun OnlineSearch(
                             .fillMaxSize()
                     ) {
                         BasicText(
-                            text = "An error has occurred.",
+                            text = stringResource(R.string.error),
                             style = typography.s.secondary.center,
                             modifier = Modifier
                                 .align(Alignment.Center)
