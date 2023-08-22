@@ -11,6 +11,5 @@ data class Playlist(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
     val browseId: String? = null,
-    @ColumnInfo(defaultValue = "0")
     val download: Boolean = false
 )

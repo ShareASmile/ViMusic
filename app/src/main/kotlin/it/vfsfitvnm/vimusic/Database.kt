@@ -532,9 +532,9 @@ abstract class DatabaseInitializer protected constructor() : RoomDatabase() {
                         From8To9Migration(),
                         From10To11Migration(),
                         From14To15Migration(),
-                        From22To23Migration()
+                        From22To23Migration(),
+
                     )
-                    .fallbackToDestructiveMigration()
                     .build()
             }
         }
@@ -683,7 +683,11 @@ abstract class DatabaseInitializer protected constructor() : RoomDatabase() {
         }
     }
 
-    class From23To24Migration : AutoMigrationSpec
+    class From23To24Migration : Migration(23, 24) {
+        override fun migrate(it: SupportSQLiteDatabase) {
+            it.execSQL("ALTER TABLE Playlist ADD download Integer NOT NULL DEFAULT 0")
+        }
+    }
 }
 
 @TypeConverters
