@@ -134,14 +134,14 @@ interface Database {
 
     @Query(
         """
-            SELECT id, songId, download FROM SongPlaylistMap 
+            SELECT EXISTS (SELECT id, songId, download FROM SongPlaylistMap 
             INNER JOIN Playlist ON Playlist.id = SongPlaylistMap.playlistId 
-            WHERE songId = :id AND download = 1
+            WHERE songId = :id AND download = 1)
         """
     )
     fun songIsDownloaded(id: String): Boolean
 
-    @Query("SELECT id FROM Song WHERE id = :id AND likedAt IS NOT NULL")
+    @Query("SELECT EXISTS(SELECT id FROM Song WHERE id = :id AND likedAt IS NOT NULL)")
     fun songIsFavourited(id: String): Boolean
 
     @Query(

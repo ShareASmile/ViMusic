@@ -24,12 +24,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -40,6 +42,7 @@ import it.vfsfitvnm.vimusic.LocalPlayerServiceBinder
 import it.vfsfitvnm.vimusic.R
 import it.vfsfitvnm.vimusic.models.Song
 import it.vfsfitvnm.vimusic.query
+import it.vfsfitvnm.vimusic.service.Downloader
 import it.vfsfitvnm.vimusic.ui.components.SeekBar
 import it.vfsfitvnm.vimusic.ui.components.themed.IconButton
 import it.vfsfitvnm.vimusic.ui.styling.LocalAppearance
@@ -52,7 +55,9 @@ import it.vfsfitvnm.vimusic.utils.rememberPreference
 import it.vfsfitvnm.vimusic.utils.secondary
 import it.vfsfitvnm.vimusic.utils.semiBold
 import it.vfsfitvnm.vimusic.utils.trackLoopEnabledKey
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
 
 @Composable
 fun Controls(
@@ -182,11 +187,14 @@ fun Controls(
             modifier = Modifier
                 .fillMaxWidth()
         ) {
+            val context = LocalContext.current
+            val coroutineScope = rememberCoroutineScope()
             IconButton(
                 icon = if (likedAt == null) R.drawable.heart_outline else R.drawable.heart,
                 color = colorPalette.favoritesIcon,
                 onClick = {
                     val currentMediaItem = binder.player.currentMediaItem
+                    val liked = likedAt != null
                     query {
                         if (Database.like(
                                 mediaId,
@@ -198,6 +206,11 @@ fun Controls(
                                 ?.let {
                                     Database.insert(currentMediaItem, Song::toggleLike)
                                 }
+                        }
+                        coroutineScope.launch(Dispatchers.IO) {
+                            if (!liked) {
+                                Downloader.checkFavouritesDownloads(context)
+                            }
                         }
                     }
                 },

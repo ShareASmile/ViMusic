@@ -172,7 +172,6 @@ fun LocalPlaylistSongs(
                                 }
                         }
                     )
-                    val playerService = LocalPlayerServiceBinder.current
                     val context = LocalContext.current
                     HeaderIconButton(
                         onClick = {
@@ -180,8 +179,10 @@ fun LocalPlaylistSongs(
                                 val download = !it
                                 CoroutineScope(Dispatchers.IO).launch {
                                     Database.setPlaylistDownloaded(playlistId, download)
-                                    if (download && playerService != null) {
+                                    if (download) {
                                         Downloader.checkPlaylistDownloads()
+                                    } else {
+                                        Downloader.restartDownloads(context)
                                     }
                                 }
                             }
