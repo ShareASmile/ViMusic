@@ -76,6 +76,7 @@ import it.vfsfitvnm.vimusic.Database
 import it.vfsfitvnm.vimusic.MainActivity
 import it.vfsfitvnm.vimusic.R
 import it.vfsfitvnm.vimusic.enums.ExoPlayerDiskCacheMaxSize
+import it.vfsfitvnm.vimusic.internal
 import it.vfsfitvnm.vimusic.models.Event
 import it.vfsfitvnm.vimusic.models.QueuedMediaItem
 import it.vfsfitvnm.vimusic.query
@@ -118,6 +119,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 
 @Suppress("DEPRECATION")
 class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListener.Callback,
@@ -235,6 +237,10 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
             .build()
 
         Downloader.initDownloadManager(this, cache, player)
+        this.coroutineScope.launch(Dispatchers.IO) {
+            Database.internal.openHelper.readableDatabase
+            Downloader.restartDownloads(this@PlayerService)
+        }
 
         player.repeatMode = when {
             preferences.getBoolean(trackLoopEnabledKey, false) -> Player.REPEAT_MODE_ONE
