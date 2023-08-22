@@ -533,7 +533,7 @@ abstract class DatabaseInitializer protected constructor() : RoomDatabase() {
                         From10To11Migration(),
                         From14To15Migration(),
                         From22To23Migration(),
-
+                        From23To24Migration()
                     )
                     .build()
             }
