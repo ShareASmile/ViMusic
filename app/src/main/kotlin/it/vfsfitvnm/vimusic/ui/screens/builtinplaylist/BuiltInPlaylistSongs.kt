@@ -21,10 +21,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import it.vfsfitvnm.compose.persist.persistList
 import it.vfsfitvnm.vimusic.Database
@@ -34,6 +36,7 @@ import it.vfsfitvnm.vimusic.R
 import it.vfsfitvnm.vimusic.enums.BuiltInPlaylist
 import it.vfsfitvnm.vimusic.models.Song
 import it.vfsfitvnm.vimusic.models.SongWithContentLength
+import it.vfsfitvnm.vimusic.service.Downloader
 import it.vfsfitvnm.vimusic.ui.components.LocalMenuState
 import it.vfsfitvnm.vimusic.ui.components.themed.FloatingActionsContainerWithScrollToTop
 import it.vfsfitvnm.vimusic.ui.components.themed.Header
@@ -52,8 +55,11 @@ import it.vfsfitvnm.vimusic.utils.forcePlayAtIndex
 import it.vfsfitvnm.vimusic.utils.forcePlayFromBeginning
 import it.vfsfitvnm.vimusic.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @ExperimentalFoundationApi
 @ExperimentalAnimationApi
@@ -74,7 +80,8 @@ fun BuiltInPlaylistSongs(builtInPlaylist: BuiltInPlaylist) {
                 .songsWithContentLength()
                 .flowOn(Dispatchers.IO)
                 .map { songs ->
-                    Log.d("cache","song: $songs")
+                    Log.d("cache", "all songs: $songs")
+                    Log.d("cache", "cache: ${binder?.cache?.keys}")
                     songs.filter { song ->
                         song.contentLength?.let {
                             binder?.cache?.isCached(song.song.id, 0, song.contentLength)
@@ -122,9 +129,16 @@ fun BuiltInPlaylistSongs(builtInPlaylist: BuiltInPlaylist) {
                             key = downloadFavouritesKey,
                             defaultValue = false
                         )
+                        val coroutineScope = rememberCoroutineScope()
+                        val context = LocalContext.current
                         HeaderIconButton(
                             onClick = {
                                 downloadFavourites = !downloadFavourites
+                                if (downloadFavourites) {
+                                    coroutineScope.launch(Dispatchers.IO) {
+                                        Downloader.checkFavouritesDownloads(context)
+                                    }
+                                }
                             },
                             icon = R.drawable.baseline_download_24,
                             color = if (downloadFavourites) colorPalette.accent else colorPalette.text,

@@ -200,7 +200,7 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
         val cacheEvictor = when (val size =
             preferences.getEnum(exoPlayerDiskCacheMaxSizeKey, ExoPlayerDiskCacheMaxSize.`2GB`)) {
             ExoPlayerDiskCacheMaxSize.Unlimited -> NoOpCacheEvictor()
-            else -> DownloadEvictor(size.bytes)
+            else -> DownloadEvictor(size.bytes, this.applicationContext)
         }
 
         // TODO: Remove in a future release
@@ -219,7 +219,7 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
 
             filesDir.resolve("coil").deleteRecursively()
         }
-        cache = SimpleCache(directory, cacheEvictor, StandaloneDatabaseProvider(this))
+        cache = SimpleCache(directory, cacheEvictor, Downloader.getCacheDatabase(this))
 
         player = ExoPlayer.Builder(this, createRendersFactory(), createMediaSourceFactory())
             .setHandleAudioBecomingNoisy(true)
@@ -233,6 +233,8 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
             )
             .setUsePlatformDiagnostics(false)
             .build()
+
+        Downloader.initDownloadManager(this, cache, player)
 
         player.repeatMode = when {
             preferences.getBoolean(trackLoopEnabledKey, false) -> Player.REPEAT_MODE_ONE

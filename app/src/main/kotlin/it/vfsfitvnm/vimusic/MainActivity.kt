@@ -67,6 +67,7 @@ import it.vfsfitvnm.innertube.requests.song
 import it.vfsfitvnm.vimusic.enums.ColorPaletteMode
 import it.vfsfitvnm.vimusic.enums.ColorPaletteName
 import it.vfsfitvnm.vimusic.enums.ThumbnailRoundness
+import it.vfsfitvnm.vimusic.service.Downloader
 import it.vfsfitvnm.vimusic.service.PlayerService
 import it.vfsfitvnm.vimusic.ui.components.BottomSheetMenu
 import it.vfsfitvnm.vimusic.ui.components.LocalMenuState
@@ -96,6 +97,7 @@ import it.vfsfitvnm.vimusic.utils.thumbnailRoundnessKey
 import it.vfsfitvnm.vimusic.utils.useSystemFontKey
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch

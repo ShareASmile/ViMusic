@@ -1,14 +1,18 @@
 package it.vfsfitvnm.vimusic.service
 
+import android.app.Application
+import android.content.Context
 import android.util.Log
 import androidx.media3.common.C.LENGTH_UNSET
 import androidx.media3.datasource.cache.Cache
 import androidx.media3.datasource.cache.CacheEvictor
 import androidx.media3.datasource.cache.CacheSpan
 import it.vfsfitvnm.vimusic.Database
+import it.vfsfitvnm.vimusic.utils.downloadFavouritesKey
+import it.vfsfitvnm.vimusic.utils.preferences
 import java.util.TreeSet
 
-class DownloadEvictor(private val maxBytes: Long) : CacheEvictor {
+class DownloadEvictor(private val maxBytes: Long, private val context: Context) : CacheEvictor {
 
     private val leastRecentlyUsed: TreeSet<CacheSpan> = sortedSetOf(object : Comparator<CacheSpan> {
         override fun compare(lhs: CacheSpan, rhs: CacheSpan): Int {
@@ -24,10 +28,13 @@ class DownloadEvictor(private val maxBytes: Long) : CacheEvictor {
     private var downloadSize: Long = 0
 
     override fun onSpanAdded(cache: Cache, span: CacheSpan) {
-        Log.d("cache", "add to cache: ${span.key} ${span.file} ${span.position} ${span.length}")
-        if (Database.songIsDownloaded(span.key)) {
+        val downloadFavourites = context.preferences.getBoolean(downloadFavouritesKey, false)
+        val shouldSkip = Database.songIsDownloaded(span.key) || (downloadFavourites && Database.songIsFavourited(span.key))
+        if (shouldSkip) {
+            Log.d("cache", "cache skip ${span.key}")
             downloadSize += span.length
         } else {
+            Log.d("cache", "cache add ${span.key}")
             leastRecentlyUsed.add(span)
             currentSize += span.length
             evictCache(cache, 0)

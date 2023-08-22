@@ -38,8 +38,8 @@ import it.vfsfitvnm.vimusic.enums.SongSortBy
 import it.vfsfitvnm.vimusic.enums.SortOrder
 import it.vfsfitvnm.vimusic.models.Album
 import it.vfsfitvnm.vimusic.models.Artist
-import it.vfsfitvnm.vimusic.models.SongWithContentLength
 import it.vfsfitvnm.vimusic.models.Event
+import it.vfsfitvnm.vimusic.models.FavouritesDownloadInfo
 import it.vfsfitvnm.vimusic.models.Format
 import it.vfsfitvnm.vimusic.models.Info
 import it.vfsfitvnm.vimusic.models.Lyrics
@@ -51,9 +51,10 @@ import it.vfsfitvnm.vimusic.models.SearchQuery
 import it.vfsfitvnm.vimusic.models.Song
 import it.vfsfitvnm.vimusic.models.SongAlbumMap
 import it.vfsfitvnm.vimusic.models.SongArtistMap
+import it.vfsfitvnm.vimusic.models.PlaylistDownloadInfo
 import it.vfsfitvnm.vimusic.models.SongPlaylistMap
+import it.vfsfitvnm.vimusic.models.SongWithContentLength
 import it.vfsfitvnm.vimusic.models.SortedSongPlaylistMap
-import kotlin.jvm.Throws
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -141,11 +142,21 @@ interface Database {
     )
     fun songIsDownloaded(id: String): Boolean
 
+    @Query("SELECT id FROM Song WHERE id = :id AND likedAt IS NOT NULL")
+    fun songIsFavourited(id: String): Boolean
+
+    @Query("SELECT * FROM PlaylistDownloadInfo")
+    fun songDownloadInfo(): List<PlaylistDownloadInfo>
+
+    @Query("SELECT * FROM FavouritesDownloadInfo")
+    fun favouritesDownloadInfo(): List<FavouritesDownloadInfo>
+
     @Query("UPDATE Playlist SET download = :downloaded WHERE id = :id ")
     fun setPlaylistDownloaded(id: Long, downloaded: Boolean)
 
     @Query("SELECT contentLength FROM Format WHERE songId = :id")
     fun songContentLength(id: String): Long?
+
 
     @Query("SELECT likedAt FROM Song WHERE id = :songId")
     fun likedAt(songId: String): Flow<Long?>
@@ -472,7 +483,9 @@ interface Database {
         Lyrics::class,
     ],
     views = [
-        SortedSongPlaylistMap::class
+        SortedSongPlaylistMap::class,
+        PlaylistDownloadInfo::class,
+        FavouritesDownloadInfo::class
     ],
     version = 24,
     exportSchema = true,
@@ -516,6 +529,7 @@ abstract class DatabaseInitializer protected constructor() : RoomDatabase() {
                         From14To15Migration(),
                         From22To23Migration()
                     )
+                    .fallbackToDestructiveMigration()
                     .build()
             }
         }
