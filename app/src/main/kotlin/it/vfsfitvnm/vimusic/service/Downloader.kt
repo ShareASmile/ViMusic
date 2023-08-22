@@ -3,7 +3,9 @@ package it.vfsfitvnm.vimusic.service
 import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.text.format.DateUtils
@@ -22,6 +24,7 @@ import it.vfsfitvnm.innertube.Innertube
 import it.vfsfitvnm.innertube.models.bodies.PlayerBody
 import it.vfsfitvnm.innertube.requests.player
 import it.vfsfitvnm.vimusic.Database
+import it.vfsfitvnm.vimusic.MainActivity
 import it.vfsfitvnm.vimusic.R
 import it.vfsfitvnm.vimusic.models.Format
 import it.vfsfitvnm.vimusic.models.SongDownloadInfo
@@ -34,10 +37,8 @@ import kotlinx.coroutines.runBlocking
 import java.util.concurrent.Executor
 
 object Downloader {
-    private var currentCount: Int = 0
     private const val channelId = "download"
     private const val notificationId = 7123
-    private var initialized = false
     lateinit var cacheDatabase: StandaloneDatabaseProvider
     private lateinit var downloadManager: DownloadManager
     private lateinit var cache: Cache
@@ -68,6 +69,23 @@ object Downloader {
         val requirements = Requirements(Requirements.NETWORK)
         downloadManager.requirements = requirements
         downloadManager.maxParallelDownloads = 100
+
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            0,
+            intent,
+            PendingIntent.FLAG_CANCEL_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val builder = NotificationCompat.Builder(context, channelId)
+            .setContentTitle("Pre-caching songs")
+            .setContentText("Download in progress")
+            .setSmallIcon(R.drawable.baseline_download_24)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setContentIntent(pendingIntent)
+
         downloadManager.addListener(object : DownloadManager.Listener {
             override fun onDownloadChanged(
                 downloadManager: DownloadManager,
@@ -76,8 +94,26 @@ object Downloader {
             ) {
                 super.onDownloadChanged(downloadManager, download, finalException)
                 Log.d("cache", "download ${download.request.id} ${download.state}")
+                val downloadingCount = downloadManager.currentDownloads.size
+                if (downloadingCount > 0) {
+                    builder.setContentText("$downloadingCount items remaining")
+                    builder.setProgress(0, 0, true)
+                } else {
+                    builder.setContentText("Download complete")
+                    builder.setProgress(0, 0, false)
+                    builder.setTimeoutAfter(10000)
+                }
+                NotificationManagerCompat.from(context).notify(notificationId, builder.build())
             }
         })
+        registerChannel(context)
+    }
+
+    @Synchronized
+    suspend fun restartDownloads(context: Context) {
+        downloadManager.removeAllDownloads()
+        checkPlaylistDownloads()
+        checkFavouritesDownloads(context)
     }
 
     @Synchronized
@@ -94,7 +130,7 @@ object Downloader {
     suspend fun checkFavouritesDownloads(context: Context) {
         Log.d("cache", "checking favourites")
         val shouldDownload = context.preferences.getBoolean(downloadFavouritesKey, false)
-        if(!shouldDownload) return
+        if (!shouldDownload) return
         val songDownloadInfo = Database.favouritesDownloadInfo()
         Log.d("cache", "favourites $songDownloadInfo")
         if (!::cache.isInitialized || !::player.isInitialized) return
@@ -171,13 +207,6 @@ object Downloader {
         }
     }
 
-    private fun removeNotification(context: Context) {
-        NotificationManagerCompat.from(context).apply {
-            builder.setContentText("Download complete").setProgress(0, 0, false)
-            notify(notificationId, builder.build())
-        }
-    }
-
     private fun registerChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Log.d("cache", "registering channel")
@@ -187,26 +216,11 @@ object Downloader {
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
                 description = "Pre-cache download progress"
+                importance = NotificationManager.IMPORTANCE_LOW
             }
             val notificationManager =
                 context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
-        }
-
-    }
-
-    private fun createNotification(context: Context) {
-        if (!initialized) registerChannel(context)
-        builder = NotificationCompat.Builder(context, "download")
-            .setContentTitle("Pre-caching songs")
-            .setContentText("Download in progress")
-            .setSmallIcon(R.drawable.baseline_download_24)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-        val progressMax = 100
-        val progressCurrent = 0
-        NotificationManagerCompat.from(context).apply {
-            builder.setProgress(progressMax, progressCurrent, false)
-            notify(notificationId, builder.build())
         }
     }
 }
