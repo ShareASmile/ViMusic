@@ -24,7 +24,6 @@ import it.vfsfitvnm.innertube.requests.player
 import it.vfsfitvnm.vimusic.Database
 import it.vfsfitvnm.vimusic.R
 import it.vfsfitvnm.vimusic.models.Format
-import it.vfsfitvnm.vimusic.models.PlaylistDownloadInfo
 import it.vfsfitvnm.vimusic.models.SongDownloadInfo
 import it.vfsfitvnm.vimusic.query
 import it.vfsfitvnm.vimusic.utils.downloadFavouritesKey
@@ -97,6 +96,7 @@ object Downloader {
         val shouldDownload = context.preferences.getBoolean(downloadFavouritesKey, false)
         if(!shouldDownload) return
         val songDownloadInfo = Database.favouritesDownloadInfo()
+        Log.d("cache", "favourites $songDownloadInfo")
         if (!::cache.isInitialized || !::player.isInitialized) return
         songDownloadInfo.forEach {
             downloadSong(it)

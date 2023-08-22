@@ -39,7 +39,6 @@ import it.vfsfitvnm.vimusic.enums.SortOrder
 import it.vfsfitvnm.vimusic.models.Album
 import it.vfsfitvnm.vimusic.models.Artist
 import it.vfsfitvnm.vimusic.models.Event
-import it.vfsfitvnm.vimusic.models.FavouritesDownloadInfo
 import it.vfsfitvnm.vimusic.models.Format
 import it.vfsfitvnm.vimusic.models.Info
 import it.vfsfitvnm.vimusic.models.Lyrics
@@ -51,7 +50,7 @@ import it.vfsfitvnm.vimusic.models.SearchQuery
 import it.vfsfitvnm.vimusic.models.Song
 import it.vfsfitvnm.vimusic.models.SongAlbumMap
 import it.vfsfitvnm.vimusic.models.SongArtistMap
-import it.vfsfitvnm.vimusic.models.PlaylistDownloadInfo
+import it.vfsfitvnm.vimusic.models.SongDownloadInfo
 import it.vfsfitvnm.vimusic.models.SongPlaylistMap
 import it.vfsfitvnm.vimusic.models.SongWithContentLength
 import it.vfsfitvnm.vimusic.models.SortedSongPlaylistMap
@@ -145,11 +144,19 @@ interface Database {
     @Query("SELECT id FROM Song WHERE id = :id AND likedAt IS NOT NULL")
     fun songIsFavourited(id: String): Boolean
 
-    @Query("SELECT * FROM PlaylistDownloadInfo")
-    fun songDownloadInfo(): List<PlaylistDownloadInfo>
+    @Query(
+        """
+            SELECT SongPlaylistMap.songId as songId, MAX(contentLength) as contentLength FROM SongPlaylistMap
+            LEFT JOIN Format on SongPlaylistMap.songId = Format.songId
+            JOIN Playlist on playlistId = id
+            WHERE download = 1
+            GROUP BY SongPlaylistMap.songId
+        """
+    )
+    fun songDownloadInfo(): List<SongDownloadInfo>
 
-    @Query("SELECT * FROM FavouritesDownloadInfo")
-    fun favouritesDownloadInfo(): List<FavouritesDownloadInfo>
+    @Query("SELECT Song.id as songId, contentLength FROM Song LEFT JOIN Format ON Song.id = Format.songId WHERE likedAt IS NOT NULL")
+    fun favouritesDownloadInfo(): List<SongDownloadInfo>
 
     @Query("UPDATE Playlist SET download = :downloaded WHERE id = :id ")
     fun setPlaylistDownloaded(id: Long, downloaded: Boolean)
@@ -484,8 +491,6 @@ interface Database {
     ],
     views = [
         SortedSongPlaylistMap::class,
-        PlaylistDownloadInfo::class,
-        FavouritesDownloadInfo::class
     ],
     version = 24,
     exportSchema = true,
