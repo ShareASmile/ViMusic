@@ -39,6 +39,8 @@ import java.util.concurrent.Executor
 object Downloader {
     private const val channelId = "download"
     private const val notificationId = 7123
+
+    var downloadsSize: Long = 0
     lateinit var cacheDatabase: StandaloneDatabaseProvider
     private lateinit var downloadManager: DownloadManager
     private lateinit var cache: Cache

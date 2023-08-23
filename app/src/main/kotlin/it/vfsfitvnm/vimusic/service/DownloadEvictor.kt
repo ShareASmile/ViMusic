@@ -33,6 +33,7 @@ class DownloadEvictor(private val maxBytes: Long, private val context: Context) 
         if (shouldSkip) {
             Log.d("cache", "cache skip ${span.key}")
             downloadSize += span.length
+            Downloader.downloadsSize = downloadSize
         } else {
             Log.d("cache", "cache add ${span.key}")
             leastRecentlyUsed.add(span)

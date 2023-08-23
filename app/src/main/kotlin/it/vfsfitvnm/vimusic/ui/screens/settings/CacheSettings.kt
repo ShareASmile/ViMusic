@@ -24,6 +24,7 @@ import it.vfsfitvnm.vimusic.LocalPlayerAwareWindowInsets
 import it.vfsfitvnm.vimusic.LocalPlayerServiceBinder
 import it.vfsfitvnm.vimusic.enums.CoilDiskCacheMaxSize
 import it.vfsfitvnm.vimusic.enums.ExoPlayerDiskCacheMaxSize
+import it.vfsfitvnm.vimusic.service.Downloader
 import it.vfsfitvnm.vimusic.ui.components.themed.Header
 import it.vfsfitvnm.vimusic.ui.styling.LocalAppearance
 import it.vfsfitvnm.vimusic.utils.coilDiskCacheMaxSizeKey
@@ -93,11 +94,6 @@ fun CacheSettings() {
                     cache.cacheSpace
                 }
             }
-//            val diskDownloadSize by remember {
-//                derivedStateOf {
-//                    cache.cacheSpace
-//                }
-//            }
 
             SettingsGroupSpacer()
 
@@ -105,7 +101,7 @@ fun CacheSettings() {
 
             SettingsDescription(
                 text = buildString {
-                    append(Formatter.formatShortFileSize(context, diskCacheSize))
+                    append(Formatter.formatShortFileSize(context, diskCacheSize - Downloader.downloadsSize))
                     append(" used")
                     when (val size = exoPlayerDiskCacheMaxSize) {
                         ExoPlayerDiskCacheMaxSize.Unlimited -> {}
