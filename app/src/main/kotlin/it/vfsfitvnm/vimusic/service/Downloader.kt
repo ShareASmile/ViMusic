@@ -105,7 +105,7 @@ object Downloader {
                 } else {
                     builder.setContentText("Download complete")
                     builder.setProgress(0, 0, false)
-                    builder.setTimeoutAfter(0)
+                    builder.setTimeoutAfter(1000)
                 }
                 NotificationManagerCompat.from(context).notify(notificationId, builder.build())
             }
