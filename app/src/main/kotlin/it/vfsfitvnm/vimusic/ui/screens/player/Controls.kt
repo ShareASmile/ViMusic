@@ -38,12 +38,10 @@ import androidx.media3.common.Player
 import it.vfsfitvnm.vimusic.Database
 import it.vfsfitvnm.vimusic.LocalPlayerServiceBinder
 import it.vfsfitvnm.vimusic.R
-import it.vfsfitvnm.vimusic.models.Info
 import it.vfsfitvnm.vimusic.models.Song
 import it.vfsfitvnm.vimusic.query
 import it.vfsfitvnm.vimusic.ui.components.SeekBar
 import it.vfsfitvnm.vimusic.ui.components.themed.IconButton
-import it.vfsfitvnm.vimusic.ui.screens.artistRoute
 import it.vfsfitvnm.vimusic.ui.styling.LocalAppearance
 import it.vfsfitvnm.vimusic.ui.styling.favoritesIcon
 import it.vfsfitvnm.vimusic.utils.bold
@@ -54,9 +52,7 @@ import it.vfsfitvnm.vimusic.utils.rememberPreference
 import it.vfsfitvnm.vimusic.utils.secondary
 import it.vfsfitvnm.vimusic.utils.semiBold
 import it.vfsfitvnm.vimusic.utils.trackLoopEnabledKey
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.withContext
 
 @Composable
 fun Controls(
@@ -83,14 +79,8 @@ fun Controls(
         mutableStateOf<Long?>(null)
     }
 
-    var artistsInfo: List<Info>? by remember { mutableStateOf(null) }
-
-    LaunchedEffect(Unit) {
-        withContext(Dispatchers.IO) {
-            if (artistsInfo == null) artistsInfo = Database.songArtistInfo(mediaId)
-
-            Database.likedAt(mediaId).distinctUntilChanged().collect { likedAt = it }
-        }
+    LaunchedEffect(mediaId) {
+        Database.likedAt(mediaId).distinctUntilChanged().collect { likedAt = it }
     }
 
     val shouldBePlayingTransition = updateTransition(shouldBePlaying, label = "shouldBePlaying")
@@ -123,11 +113,7 @@ fun Controls(
             text = artist ?: "",
             style = typography.s.semiBold.secondary,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.clickable {
-                val goTo = artistRoute::global
-                goTo(artistsInfo?.get(0)?.id)
-            }
+            overflow = TextOverflow.Ellipsis
         )
 
         Spacer(
