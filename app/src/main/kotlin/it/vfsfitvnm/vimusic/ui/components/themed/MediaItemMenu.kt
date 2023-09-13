@@ -1,6 +1,7 @@
 package it.vfsfitvnm.vimusic.ui.components.themed
 
 import android.content.Intent
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentScope
@@ -30,6 +31,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -54,6 +56,7 @@ import it.vfsfitvnm.vimusic.models.Playlist
 import it.vfsfitvnm.vimusic.models.Song
 import it.vfsfitvnm.vimusic.models.SongPlaylistMap
 import it.vfsfitvnm.vimusic.query
+import it.vfsfitvnm.vimusic.service.Downloader
 import it.vfsfitvnm.vimusic.transaction
 import it.vfsfitvnm.vimusic.ui.items.SongItem
 import it.vfsfitvnm.vimusic.ui.screens.albumRoute
@@ -70,9 +73,12 @@ import it.vfsfitvnm.vimusic.utils.formatAsDuration
 import it.vfsfitvnm.vimusic.utils.medium
 import it.vfsfitvnm.vimusic.utils.semiBold
 import it.vfsfitvnm.vimusic.utils.thumbnail
+import kotlinx.coroutines.CoroutineScope
 import kotlin.system.measureTimeMillis
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @ExperimentalAnimationApi
@@ -204,6 +210,7 @@ fun BaseMediaItemMenu(
     onRemoveFromQuickPicks: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
     MediaItemMenu(
         mediaItem = mediaItem,
@@ -223,6 +230,9 @@ fun BaseMediaItemMenu(
                         position = position
                     )
                 )
+                coroutineScope.launch(Dispatchers.IO) {
+                    Downloader.checkPlaylistDownloads()
+                }
             }
         },
         onHideFromDatabase = onHideFromDatabase,
@@ -411,11 +421,14 @@ fun MediaItemMenu(
                             .weight(1f)
                     )
 
+                    val context = LocalContext.current
+                    val coroutineScope = rememberCoroutineScope()
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         IconButton(
                             icon = if (likedAt == null) R.drawable.heart_outline else R.drawable.heart,
                             color = colorPalette.favoritesIcon,
                             onClick = {
+                                val liked = likedAt != null
                                 query {
                                     if (Database.like(
                                             mediaItem.mediaId,
@@ -423,6 +436,12 @@ fun MediaItemMenu(
                                         ) == 0
                                     ) {
                                         Database.insert(mediaItem, Song::toggleLike)
+                                    }
+                                    coroutineScope.launch(Dispatchers.IO) {
+                                        if (!liked) {
+                                            Log.d("cache", "liked song, checking downloads")
+                                            Downloader.checkFavouritesDownloads(context)
+                                        }
                                     }
                                 }
                             },

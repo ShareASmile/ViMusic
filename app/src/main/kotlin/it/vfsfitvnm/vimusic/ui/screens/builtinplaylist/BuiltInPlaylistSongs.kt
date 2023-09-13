@@ -1,8 +1,10 @@
 package it.vfsfitvnm.vimusic.ui.screens.builtinplaylist
 
+import android.util.Log
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
@@ -14,11 +16,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import it.vfsfitvnm.compose.persist.persistList
 import it.vfsfitvnm.vimusic.Database
@@ -28,9 +33,11 @@ import it.vfsfitvnm.vimusic.R
 import it.vfsfitvnm.vimusic.enums.BuiltInPlaylist
 import it.vfsfitvnm.vimusic.models.Song
 import it.vfsfitvnm.vimusic.models.SongWithContentLength
+import it.vfsfitvnm.vimusic.service.Downloader
 import it.vfsfitvnm.vimusic.ui.components.LocalMenuState
 import it.vfsfitvnm.vimusic.ui.components.themed.FloatingActionsContainerWithScrollToTop
 import it.vfsfitvnm.vimusic.ui.components.themed.Header
+import it.vfsfitvnm.vimusic.ui.components.themed.HeaderIconButton
 import it.vfsfitvnm.vimusic.ui.components.themed.InHistoryMediaItemMenu
 import it.vfsfitvnm.vimusic.ui.components.themed.NonQueuedMediaItemMenu
 import it.vfsfitvnm.vimusic.ui.components.themed.SecondaryTextButton
@@ -39,12 +46,15 @@ import it.vfsfitvnm.vimusic.ui.styling.Dimensions
 import it.vfsfitvnm.vimusic.ui.styling.LocalAppearance
 import it.vfsfitvnm.vimusic.ui.styling.px
 import it.vfsfitvnm.vimusic.utils.asMediaItem
+import it.vfsfitvnm.vimusic.utils.downloadFavouritesKey
 import it.vfsfitvnm.vimusic.utils.enqueue
 import it.vfsfitvnm.vimusic.utils.forcePlayAtIndex
 import it.vfsfitvnm.vimusic.utils.forcePlayFromBeginning
+import it.vfsfitvnm.vimusic.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 @ExperimentalFoundationApi
 @ExperimentalAnimationApi
@@ -107,6 +117,34 @@ fun BuiltInPlaylistSongs(builtInPlaylist: BuiltInPlaylist) {
                             binder?.player?.enqueue(songs.map(Song::asMediaItem))
                         }
                     )
+                    if (builtInPlaylist == BuiltInPlaylist.Favorites) {
+                        var downloadFavourites by rememberPreference(
+                            key = downloadFavouritesKey,
+                            defaultValue = false
+                        )
+                        val coroutineScope = rememberCoroutineScope()
+                        val context = LocalContext.current
+                        HeaderIconButton(
+                            onClick = {
+                                downloadFavourites = !downloadFavourites
+                                coroutineScope.launch(Dispatchers.IO) {
+                                    if (downloadFavourites) {
+                                        Downloader.checkFavouritesDownloads(context)
+                                    } else {
+                                        Downloader.restartDownloads(context)
+                                    }
+                                }
+                            },
+                            icon = R.drawable.baseline_download_24,
+                            color = if (downloadFavourites) colorPalette.accent else colorPalette.text,
+                            modifier = if (downloadFavourites) Modifier.border(
+                                1.dp,
+                                colorPalette.accent,
+                                shape = CircleShape
+                            ) else Modifier
+                        )
+
+                    }
 
                     Spacer(
                         modifier = Modifier

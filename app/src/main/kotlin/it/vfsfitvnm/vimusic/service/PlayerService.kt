@@ -27,6 +27,7 @@ import android.media.session.PlaybackState
 import android.net.Uri
 import android.os.Handler
 import android.text.format.DateUtils
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -75,6 +76,7 @@ import it.vfsfitvnm.vimusic.Database
 import it.vfsfitvnm.vimusic.MainActivity
 import it.vfsfitvnm.vimusic.R
 import it.vfsfitvnm.vimusic.enums.ExoPlayerDiskCacheMaxSize
+import it.vfsfitvnm.vimusic.internal
 import it.vfsfitvnm.vimusic.models.Event
 import it.vfsfitvnm.vimusic.models.QueuedMediaItem
 import it.vfsfitvnm.vimusic.query
@@ -117,6 +119,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 
 @Suppress("DEPRECATION")
 class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListener.Callback,
@@ -124,6 +127,7 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
     private lateinit var mediaSession: MediaSession
     private lateinit var cache: SimpleCache
     private lateinit var player: ExoPlayer
+    private lateinit var dataSource: CacheDataSource
 
     private val stateBuilder = PlaybackState.Builder()
         .setActions(
@@ -198,7 +202,7 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
         val cacheEvictor = when (val size =
             preferences.getEnum(exoPlayerDiskCacheMaxSizeKey, ExoPlayerDiskCacheMaxSize.`2GB`)) {
             ExoPlayerDiskCacheMaxSize.Unlimited -> NoOpCacheEvictor()
-            else -> LeastRecentlyUsedCacheEvictor(size.bytes)
+            else -> DownloadEvictor(size.bytes, this.applicationContext)
         }
 
         // TODO: Remove in a future release
@@ -217,7 +221,7 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
 
             filesDir.resolve("coil").deleteRecursively()
         }
-        cache = SimpleCache(directory, cacheEvictor, StandaloneDatabaseProvider(this))
+        cache = SimpleCache(directory, cacheEvictor, Downloader.getCacheDatabase(this))
 
         player = ExoPlayer.Builder(this, createRendersFactory(), createMediaSourceFactory())
             .setHandleAudioBecomingNoisy(true)
@@ -231,6 +235,12 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
             )
             .setUsePlatformDiagnostics(false)
             .build()
+
+        Downloader.initDownloadManager(this, cache, player)
+        this.coroutineScope.launch(Dispatchers.IO) {
+            Database.internal.openHelper.readableDatabase
+            Downloader.restartDownloads(this@PlayerService)
+        }
 
         player.repeatMode = when {
             preferences.getBoolean(trackLoopEnabledKey, false) -> Player.REPEAT_MODE_ONE
@@ -752,7 +762,10 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
         val chunkLength = 512 * 1024L
         val ringBuffer = RingBuffer<Pair<String, Uri>?>(2) { null }
 
-        return ResolvingDataSource.Factory(createCacheDataSource()) { dataSpec ->
+        val factory = createCacheDataSource()
+        dataSource = factory.createDataSource() as CacheDataSource
+        return ResolvingDataSource.Factory(factory) { dataSpec ->
+            Log.d("cache","dataspec: $dataSpec")
             val videoId = dataSpec.key ?: error("A key must be set")
 
             if (cache.isCached(videoId, dataSpec.position, chunkLength)) {
@@ -877,6 +890,9 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
 
         val mediaSession
             get() = this@PlayerService.mediaSession
+
+        val dataSource
+            get() = this@PlayerService.dataSource
 
         val sleepTimerMillisLeft: StateFlow<Long?>?
             get() = timerJob?.millisLeft

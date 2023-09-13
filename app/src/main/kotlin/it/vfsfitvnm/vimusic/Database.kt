@@ -38,7 +38,6 @@ import it.vfsfitvnm.vimusic.enums.SongSortBy
 import it.vfsfitvnm.vimusic.enums.SortOrder
 import it.vfsfitvnm.vimusic.models.Album
 import it.vfsfitvnm.vimusic.models.Artist
-import it.vfsfitvnm.vimusic.models.SongWithContentLength
 import it.vfsfitvnm.vimusic.models.Event
 import it.vfsfitvnm.vimusic.models.Format
 import it.vfsfitvnm.vimusic.models.Info
@@ -51,9 +50,10 @@ import it.vfsfitvnm.vimusic.models.SearchQuery
 import it.vfsfitvnm.vimusic.models.Song
 import it.vfsfitvnm.vimusic.models.SongAlbumMap
 import it.vfsfitvnm.vimusic.models.SongArtistMap
+import it.vfsfitvnm.vimusic.models.SongDownloadInfo
 import it.vfsfitvnm.vimusic.models.SongPlaylistMap
+import it.vfsfitvnm.vimusic.models.SongWithContentLength
 import it.vfsfitvnm.vimusic.models.SortedSongPlaylistMap
-import kotlin.jvm.Throws
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -96,10 +96,12 @@ interface Database {
                 SortOrder.Ascending -> songsByPlayTimeAsc()
                 SortOrder.Descending -> songsByPlayTimeDesc()
             }
+
             SongSortBy.Title -> when (sortOrder) {
                 SortOrder.Ascending -> songsByTitleAsc()
                 SortOrder.Descending -> songsByTitleDesc()
             }
+
             SongSortBy.DateAdded -> when (sortOrder) {
                 SortOrder.Ascending -> songsByRowIdAsc()
                 SortOrder.Descending -> songsByRowIdDesc()
@@ -129,6 +131,39 @@ interface Database {
 
     @Query("SELECT * FROM Song WHERE id = :id")
     fun song(id: String): Flow<Song?>
+
+    @Query(
+        """
+            SELECT EXISTS (SELECT id, songId, download FROM SongPlaylistMap 
+            INNER JOIN Playlist ON Playlist.id = SongPlaylistMap.playlistId 
+            WHERE songId = :id AND download = 1)
+        """
+    )
+    fun songIsDownloaded(id: String): Boolean
+
+    @Query("SELECT EXISTS(SELECT id FROM Song WHERE id = :id AND likedAt IS NOT NULL)")
+    fun songIsFavourited(id: String): Boolean
+
+    @Query(
+        """
+            SELECT SongPlaylistMap.songId as songId, MAX(contentLength) as contentLength FROM SongPlaylistMap
+            LEFT JOIN Format on SongPlaylistMap.songId = Format.songId
+            JOIN Playlist on playlistId = id
+            WHERE download = 1
+            GROUP BY SongPlaylistMap.songId
+        """
+    )
+    fun songDownloadInfo(): List<SongDownloadInfo>
+
+    @Query("SELECT Song.id as songId, contentLength FROM Song LEFT JOIN Format ON Song.id = Format.songId WHERE likedAt IS NOT NULL")
+    fun favouritesDownloadInfo(): List<SongDownloadInfo>
+
+    @Query("UPDATE Playlist SET download = :downloaded WHERE id = :id ")
+    fun setPlaylistDownloaded(id: Long, downloaded: Boolean)
+
+    @Query("SELECT contentLength FROM Format WHERE songId = :id")
+    fun songContentLength(id: String): Long?
+
 
     @Query("SELECT likedAt FROM Song WHERE id = :songId")
     fun likedAt(songId: String): Flow<Long?>
@@ -163,6 +198,7 @@ interface Database {
                 SortOrder.Ascending -> artistsByNameAsc()
                 SortOrder.Descending -> artistsByNameDesc()
             }
+
             ArtistSortBy.DateAdded -> when (sortOrder) {
                 SortOrder.Ascending -> artistsByRowIdAsc()
                 SortOrder.Descending -> artistsByRowIdDesc()
@@ -205,10 +241,12 @@ interface Database {
                 SortOrder.Ascending -> albumsByTitleAsc()
                 SortOrder.Descending -> albumsByTitleDesc()
             }
+
             AlbumSortBy.Year -> when (sortOrder) {
                 SortOrder.Ascending -> albumsByYearAsc()
                 SortOrder.Descending -> albumsByYearDesc()
             }
+
             AlbumSortBy.DateAdded -> when (sortOrder) {
                 SortOrder.Ascending -> albumsByRowIdAsc()
                 SortOrder.Descending -> albumsByRowIdDesc()
@@ -220,31 +258,31 @@ interface Database {
     fun incrementTotalPlayTimeMs(id: String, addition: Long)
 
     @Transaction
-    @Query("SELECT * FROM Playlist WHERE id = :id")
+    @Query("SELECT * FROM Playlist WHERE id = :id ")
     fun playlistWithSongs(id: Long): Flow<PlaylistWithSongs?>
 
     @Transaction
-    @Query("SELECT id, name, (SELECT COUNT(*) FROM SongPlaylistMap WHERE playlistId = id) as songCount FROM Playlist ORDER BY name ASC")
+    @Query("SELECT id, name, download, (SELECT COUNT(*) FROM SongPlaylistMap WHERE playlistId = id) as songCount FROM Playlist ORDER BY name ASC")
     fun playlistPreviewsByNameAsc(): Flow<List<PlaylistPreview>>
 
     @Transaction
-    @Query("SELECT id, name, (SELECT COUNT(*) FROM SongPlaylistMap WHERE playlistId = id) as songCount FROM Playlist ORDER BY ROWID ASC")
+    @Query("SELECT id, name, download, (SELECT COUNT(*) FROM SongPlaylistMap WHERE playlistId = id) as songCount FROM Playlist ORDER BY ROWID ASC")
     fun playlistPreviewsByDateAddedAsc(): Flow<List<PlaylistPreview>>
 
     @Transaction
-    @Query("SELECT id, name, (SELECT COUNT(*) FROM SongPlaylistMap WHERE playlistId = id) as songCount FROM Playlist ORDER BY songCount ASC")
+    @Query("SELECT id, name, download, (SELECT COUNT(*) FROM SongPlaylistMap WHERE playlistId = id) as songCount FROM Playlist ORDER BY songCount ASC")
     fun playlistPreviewsByDateSongCountAsc(): Flow<List<PlaylistPreview>>
 
     @Transaction
-    @Query("SELECT id, name, (SELECT COUNT(*) FROM SongPlaylistMap WHERE playlistId = id) as songCount FROM Playlist ORDER BY name DESC")
+    @Query("SELECT id, name, download, (SELECT COUNT(*) FROM SongPlaylistMap WHERE playlistId = id) as songCount FROM Playlist ORDER BY name DESC")
     fun playlistPreviewsByNameDesc(): Flow<List<PlaylistPreview>>
 
     @Transaction
-    @Query("SELECT id, name, (SELECT COUNT(*) FROM SongPlaylistMap WHERE playlistId = id) as songCount FROM Playlist ORDER BY ROWID DESC")
+    @Query("SELECT id, name, download, (SELECT COUNT(*) FROM SongPlaylistMap WHERE playlistId = id) as songCount FROM Playlist ORDER BY ROWID DESC")
     fun playlistPreviewsByDateAddedDesc(): Flow<List<PlaylistPreview>>
 
     @Transaction
-    @Query("SELECT id, name, (SELECT COUNT(*) FROM SongPlaylistMap WHERE playlistId = id) as songCount FROM Playlist ORDER BY songCount DESC")
+    @Query("SELECT id, name, download, (SELECT COUNT(*) FROM SongPlaylistMap WHERE playlistId = id) as songCount FROM Playlist ORDER BY songCount DESC")
     fun playlistPreviewsByDateSongCountDesc(): Flow<List<PlaylistPreview>>
 
     fun playlistPreviews(
@@ -256,10 +294,12 @@ interface Database {
                 SortOrder.Ascending -> playlistPreviewsByNameAsc()
                 SortOrder.Descending -> playlistPreviewsByNameDesc()
             }
+
             PlaylistSortBy.SongCount -> when (sortOrder) {
                 SortOrder.Ascending -> playlistPreviewsByDateSongCountAsc()
                 SortOrder.Descending -> playlistPreviewsByDateSongCountDesc()
             }
+
             PlaylistSortBy.DateAdded -> when (sortOrder) {
                 SortOrder.Ascending -> playlistPreviewsByDateAddedAsc()
                 SortOrder.Descending -> playlistPreviewsByDateAddedDesc()
@@ -279,10 +319,11 @@ interface Database {
     fun format(songId: String): Flow<Format?>
 
     @Transaction
-    @Query("SELECT Song.*, contentLength FROM Song JOIN Format ON id = songId WHERE contentLength IS NOT NULL AND totalPlayTimeMs > 0 ORDER BY Song.ROWID DESC")
+    @Query("SELECT Song.*, contentLength FROM Song JOIN Format ON id = songId WHERE contentLength IS NOT NULL ORDER BY Song.ROWID DESC")
     fun songsWithContentLength(): Flow<List<SongWithContentLength>>
 
-    @Query("""
+    @Query(
+        """
         UPDATE SongPlaylistMap SET position = 
           CASE 
             WHEN position < :fromPosition THEN position + 1
@@ -290,7 +331,8 @@ interface Database {
             ELSE :toPosition
           END 
         WHERE playlistId = :playlistId AND position BETWEEN MIN(:fromPosition,:toPosition) and MAX(:fromPosition,:toPosition)
-    """)
+    """
+    )
     fun move(playlistId: Long, fromPosition: Int, toPosition: Int)
 
     @Query("DELETE FROM SongPlaylistMap WHERE playlistId = :id")
@@ -448,9 +490,9 @@ interface Database {
         Lyrics::class,
     ],
     views = [
-        SortedSongPlaylistMap::class
+        SortedSongPlaylistMap::class,
     ],
-    version = 23,
+    version = 24,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
@@ -471,6 +513,7 @@ interface Database {
         AutoMigration(from = 19, to = 20),
         AutoMigration(from = 20, to = 21, spec = DatabaseInitializer.From20To21Migration::class),
         AutoMigration(from = 21, to = 22, spec = DatabaseInitializer.From21To22Migration::class),
+        AutoMigration(from = 23, to = 24),
     ],
 )
 @TypeConverters(Converters::class)
@@ -481,7 +524,7 @@ abstract class DatabaseInitializer protected constructor() : RoomDatabase() {
         lateinit var Instance: DatabaseInitializer
 
         context(Context)
-        operator fun invoke() {
+                operator fun invoke() {
             if (!::Instance.isInitialized) {
                 Instance = Room
                     .databaseBuilder(this@Context, DatabaseInitializer::class.java, "data.db")
@@ -489,7 +532,8 @@ abstract class DatabaseInitializer protected constructor() : RoomDatabase() {
                         From8To9Migration(),
                         From10To11Migration(),
                         From14To15Migration(),
-                        From22To23Migration()
+                        From22To23Migration(),
+                        From23To24Migration()
                     )
                     .build()
             }
@@ -621,20 +665,27 @@ abstract class DatabaseInitializer protected constructor() : RoomDatabase() {
         override fun migrate(it: SupportSQLiteDatabase) {
             it.execSQL("CREATE TABLE IF NOT EXISTS Lyrics (`songId` TEXT NOT NULL, `fixed` TEXT, `synced` TEXT, PRIMARY KEY(`songId`), FOREIGN KEY(`songId`) REFERENCES `Song`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)")
 
-            it.query(SimpleSQLiteQuery("SELECT id, lyrics, synchronizedLyrics FROM Song;")).use { cursor ->
-                val lyricsValues = ContentValues(3)
-                while (cursor.moveToNext()) {
-                    lyricsValues.put("songId", cursor.getString(0))
-                    lyricsValues.put("fixed", cursor.getString(1))
-                    lyricsValues.put("synced", cursor.getString(2))
-                    it.insert("Lyrics", CONFLICT_IGNORE, lyricsValues)
+            it.query(SimpleSQLiteQuery("SELECT id, lyrics, synchronizedLyrics FROM Song;"))
+                .use { cursor ->
+                    val lyricsValues = ContentValues(3)
+                    while (cursor.moveToNext()) {
+                        lyricsValues.put("songId", cursor.getString(0))
+                        lyricsValues.put("fixed", cursor.getString(1))
+                        lyricsValues.put("synced", cursor.getString(2))
+                        it.insert("Lyrics", CONFLICT_IGNORE, lyricsValues)
+                    }
                 }
-            }
 
             it.execSQL("CREATE TABLE IF NOT EXISTS Song_new (`id` TEXT NOT NULL, `title` TEXT NOT NULL, `artistsText` TEXT, `durationText` TEXT, `thumbnailUrl` TEXT, `likedAt` INTEGER, `totalPlayTimeMs` INTEGER NOT NULL, PRIMARY KEY(`id`))")
             it.execSQL("INSERT INTO Song_new(id, title, artistsText, durationText, thumbnailUrl, likedAt, totalPlayTimeMs) SELECT id, title, artistsText, durationText, thumbnailUrl, likedAt, totalPlayTimeMs FROM Song;")
             it.execSQL("DROP TABLE Song;")
             it.execSQL("ALTER TABLE Song_new RENAME TO Song;")
+        }
+    }
+
+    class From23To24Migration : Migration(23, 24) {
+        override fun migrate(it: SupportSQLiteDatabase) {
+            it.execSQL("ALTER TABLE Playlist ADD download Integer NOT NULL DEFAULT 0")
         }
     }
 }
