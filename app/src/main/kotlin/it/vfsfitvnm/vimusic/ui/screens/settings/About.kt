@@ -41,7 +41,7 @@ fun About() {
     ) {
         Header(title = "About") {
             BasicText(
-                text = "v${BuildConfig.VERSION_NAME} by vfsfitvnm",
+                text = "v${BuildConfig.VERSION_NAME} by ShareASmile",
                 style = typography.s.secondary
             )
         }
@@ -52,7 +52,7 @@ fun About() {
             title = "GitHub",
             text = stringResource(R.string.view_the_source_code),
             onClick = {
-                uriHandler.openUri("https://github.com/vfsfitvnm/ViMusic")
+                uriHandler.openUri("https://github.com/ShareASmile/ViMusic")
             }
         )
 
