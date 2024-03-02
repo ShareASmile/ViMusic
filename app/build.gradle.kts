@@ -26,9 +26,13 @@ android {
 
     buildTypes {
         debug {
+            isMinifyEnabled = true
+            isShrinkResources = true
             applicationIdSuffix = ".debug"
-            manifestPlaceholders["appName"] = "Debug"
-        }
+            manifestPlaceholders["appName"] = "ViMusic Debug"
+            signingConfig = signingConfigs.getByName("debug")
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+       }
 
         release {
             isMinifyEnabled = true
@@ -85,6 +89,7 @@ dependencies {
     implementation(libs.palette)
 
     implementation(libs.exoplayer)
+    implementation(libs.exoplayer.okhttp)
 
     implementation(libs.room)
     kapt(libs.room.compiler)
