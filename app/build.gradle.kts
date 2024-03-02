@@ -28,8 +28,8 @@ android {
         debug {
             isMinifyEnabled = true
             isShrinkResources = true
-            applicationIdSuffix = ".debug"
-            manifestPlaceholders["appName"] = "ViMusic Debug"
+            applicationIdSuffix = ".swipe"
+            manifestPlaceholders["appName"] = "ViMusic Swipe"
             signingConfig = signingConfigs.getByName("debug")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
        }
