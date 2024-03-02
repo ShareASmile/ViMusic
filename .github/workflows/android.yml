@@ -6,9 +6,15 @@ on:
   pull_request:
     branches:
      - zeta
+    paths-ignore:
+      - 'fastlane/**'
+      - '.github/ISSUE_TEMPLATE/**'
   push:
     branches:
       - zeta
+    paths-ignore:
+      - 'fastlane/**'
+      - '.github/ISSUE_TEMPLATE/**'
 jobs:
   build:
     runs-on: ubuntu-latest
