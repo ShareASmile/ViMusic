@@ -1,7 +1,14 @@
 name: CI
 
-on: push
 
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+     - zeta
+  push:
+    branches:
+      - zeta
 jobs:
   build:
     runs-on: ubuntu-latest
